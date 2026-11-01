@@ -1,7 +1,6 @@
-# 1.5.0b1
+# 1.5.1b1
 
-- Panneau JavaScript stable `panel.js`.
-- Tableau 2/3 et fiche 1/3, empilement avant 1150 px.
-- Police agrandie, ligne sélectionnée et sections de détail repliables.
-- Automatisations présentées en YAML, références mises en évidence.
-- Tests automatiques de contrat UI et de structure de la réponse.
+- Association de toutes les entrées `core.config_entries` via `config_entry_id`, indépendamment du domaine.
+- Affichage des options et données de configuration pertinentes, avec masquage des secrets.
+- Extraction des dépendances depuis `options` et `data` pour toutes les entités associées.
+- Tests de régression couvrant Filter, Template, partage d’entrée et masquage.

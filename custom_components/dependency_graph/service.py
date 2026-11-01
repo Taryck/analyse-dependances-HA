@@ -189,35 +189,33 @@ class GraphService:
                         add('category.'+scope+'.'+obj['category_id'],links_out,'Catégorie '+scope)
             data['organisation_depend_on']=links_out
             data['organisation_required_by']=links_in
-            # Les automatisations stockent leur définition YAML dans attributes.
-            # yaml.safe_dump produit du YAML lisible plutôt que du JSON.
-            # On évite de dupliquer toute l'entrée core.config_entries : seules
-            # les propriétés utiles de l'objet sont exposées dans configuration.
-            # Une entité créée depuis l'interface Template peut être reliée
-            # à une entrée de core.config_entries par son config_entry_id.
-            # Le registre d'entités contient l'identifiant, pas les formules.
-            # On récupère donc uniquement les options de CETTE entrée Template.
-            # Il ne faut jamais recopier toutes les entrées d'intégrations :
-            # elles pourraient contenir des jetons ou des mots de passe.
+            # Les propriétés du registre d'entités décrivent son identité,
+            # mais les paramètres fonctionnels résident dans core.config_entries.
+            # Le rattachement doit utiliser l'identifiant exact de l'entrée :
+            # un capteur ``filter`` n'est pas nécessairement de domaine template.
             attrs = json.loads(db.db.execute(
                 'SELECT attributes FROM objects WHERE object_id=?', (oid,)
             ).fetchone()[0] or '{}')
             entry_id = attrs.get('config_entry_id')
             if entry_id and domain not in ('automation', 'script', 'scene'):
+                # Chercher par config_id, pas par nom ou domaine : cela couvre
+                # filter, template et toutes les intégrations qui exposent une
+                # entrée associée à l'entité dans le registre.
                 entry = db.db.execute(
-                    'SELECT attributes FROM objects WHERE object_id=?',
-                    ('template_config.' + entry_id,)
+                    "SELECT attributes FROM objects WHERE config_id=? "
+                    "AND object_type='config_entry' LIMIT 1", (entry_id,)
                 ).fetchone()
                 if entry:
-                    template = json.loads(entry[0] or '{}')
-                    options = template.get('options') or {}
-                    if options:
-                        # On évite les doublons : la fiche conserve ses propriétés
-                        # dans object, et affiche les formules dans configuration.
-                        data['configuration'] = {
-                            'source': 'core.config_entries',
-                            'options': self._redact(options),
-                        }
+                    settings = json.loads(entry[0] or '{}')
+                    # Éviter de dupliquer le registre : conserver uniquement
+                    # les paramètres qui expliquent le comportement de l'entité.
+                    # Les secrets seront masqués récursivement par _redact.
+                    data['configuration'] = {
+                        'source': 'core.config_entries',
+                        'domain': settings.get('domain'),
+                        'options': settings.get('options') or {},
+                        'data': settings.get('data') or {},
+                    }
             if domain in ('automation', 'script', 'scene'):
                 config = data.get('configuration')
                 if isinstance(config, (dict, list)):

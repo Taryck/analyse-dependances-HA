@@ -66,12 +66,26 @@ def scan_all(root,db,global_path=None):
         elif section in ('script','scene') and isinstance(content,dict):
             for key,item in content.items():
                 if isinstance(item,dict):walk(item,f'{section}.{key}',filename,f'{section}.{key}')
-    # Configuration des helpers Template créés via interface utilisateur.
-    for row in list(db.db.execute("SELECT * FROM objects WHERE object_type='template_config'")):
-        attrs=json.loads(row['attributes'] or '{}')
-        entry_id=attrs.get('entry_id')
-        entity=db.db.execute("SELECT entity_id FROM objects WHERE entity_id IS NOT NULL AND json_extract(attributes,'$.config_entry_id')=? LIMIT 1",(entry_id,)).fetchone()
-        source=entity['entity_id'] if entity else row['object_id']
-        walk(attrs.get('options') or {},source,'core.config_entries',f'template_config.{entry_id}.options')
+    # Parcourir toutes les entrées de configuration, pas seulement Template.
+    # Une entrée filter, par exemple, contient son capteur source dans options.
+    # Plusieurs entités peuvent partager la même entrée : chaque entité doit
+    # recevoir les références qui la concernent, sans dupliquer les objets.
+    for row in list(db.db.execute("SELECT * FROM objects WHERE object_type='config_entry'")):
+        attrs = json.loads(row['attributes'] or '{}')
+        entry_id = attrs.get('entry_id')
+        if not entry_id:
+            continue
+        entities = list(db.db.execute(
+            "SELECT entity_id FROM objects WHERE entity_id IS NOT NULL "
+            "AND json_extract(attributes,'$.config_entry_id')=?", (entry_id,)
+        ))
+        sources = [entity['entity_id'] for entity in entities] or [row['object_id']]
+        for source in sources:
+            # Les champs options et data peuvent tous deux contenir des entités.
+            # Le parcours existant extrait les identifiants directs et Jinja.
+            # Il ignore les champs de gestion non fonctionnels du registre.
+            for section in ('options', 'data'):
+                walk(attrs.get(section) or {}, source, 'core.config_entries',
+                     f'config_entry.{entry_id}.{section}')
     db.commit()
     return count
