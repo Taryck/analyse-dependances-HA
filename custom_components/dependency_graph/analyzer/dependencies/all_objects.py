@@ -8,7 +8,7 @@ JINJA_COMMENT = re.compile(r'{#.*?#}',re.S)
 JINJA_BLOCK = re.compile(r'({{.*?}}|{%.*?%})', re.S)
 JINJA_REF = re.compile(r"(?:states|is_state|is_state_attr|state_attr|has_value|expand)\s*\(\s*['\"]([a-z_][a-z0-9_]*\.[a-z0-9_]+)['\"]",re.I)
 JINJA_DOT = re.compile(r'\bstates\.([a-z_][a-z0-9_]*)\.([a-z0-9_]+)',re.I)
-DIRECT = {'entity_id','entity','above','below','at'}
+DIRECT = {'entity_id','entity','source','above','below','at'}
 SKIP = {'fichier_d_origine','alias','description','name','icon','action','service','trigger','condition','device_id','area_id','label_id','domain','platform','unique_id','id'}
 
 def references(value,key):
