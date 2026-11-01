@@ -15,7 +15,9 @@ async def async_setup_entry(hass,entry):
         register(hass)
     if not async_panel_exists(hass,PANEL_PATH):
         await hass.http.async_register_static_paths([
-            StaticPathConfig('/dependency_graph_static',str(Path(__file__).parent/'frontend'),False)
+            StaticPathConfig('/dependency_graph_static',str(Path(__file__).parent/'frontend'),False),
+            # Le même PNG sert au panneau et à l'identité visuelle de l'intégration.
+            StaticPathConfig('/dependency_graph_brand',str(Path(__file__).parent/'brand'),False)
         ])
         await panel_custom.async_register_panel(
             hass,frontend_url_path=PANEL_PATH,webcomponent_name='dependency-graph-panel',
