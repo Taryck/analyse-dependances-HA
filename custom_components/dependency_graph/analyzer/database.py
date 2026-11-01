@@ -19,6 +19,13 @@ class Database:
             UNIQUE(source_id, target_id, yaml_path, reference_type));
         ''')
         self._ensure_columns()
+        self.db.executescript('''
+        CREATE INDEX IF NOT EXISTS idx_dependency_source ON dependencies(source_id);
+        CREATE INDEX IF NOT EXISTS idx_dependency_target ON dependencies(target_id);
+        CREATE INDEX IF NOT EXISTS idx_objects_area ON objects(area_id);
+        CREATE INDEX IF NOT EXISTS idx_objects_floor ON objects(floor_id);
+        CREATE INDEX IF NOT EXISTS idx_objects_category ON objects(category_id);
+        ''')
 
     def _ensure_columns(self):
         columns = {row[1] for row in self.db.execute('PRAGMA table_info(objects)')}

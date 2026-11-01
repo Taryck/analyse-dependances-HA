@@ -25,11 +25,11 @@ async def _execute(hass, connection, msg, method, *args, **kwargs):
     else:
         connection.send_result(msg['id'],result)
 
-@websocket_api.websocket_command({vol.Required('type'):'dependency_graph/list',vol.Optional('query',default=''):str,vol.Optional('domain',default=''):str,vol.Optional('area',default=''):str,vol.Optional('floor',default=''):str,vol.Optional('category',default=''):str,vol.Optional('scope',default=''):str,vol.Optional('limit',default=200):vol.All(int,vol.Range(min=1,max=500)),vol.Optional('offset',default=0):vol.All(int,vol.Range(min=0))})
+@websocket_api.websocket_command({vol.Required('type'):'dependency_graph/list',vol.Optional('query',default=''):str,vol.Optional('domain',default=''):str,vol.Optional('area',default=''):str,vol.Optional('floor',default=''):str,vol.Optional('category',default=''):str,vol.Optional('scope',default=''):str,vol.Optional('family',default=''):str,vol.Optional('sort',default='object_id'):str,vol.Optional('descending',default=False):bool,vol.Optional('limit',default=200):vol.All(int,vol.Range(min=1,max=500)),vol.Optional('offset',default=0):vol.All(int,vol.Range(min=0))})
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_list(hass,connection,msg):
-    await _execute(hass,connection,msg,'list_objects',**{k:msg[k] for k in ('query','domain','area','floor','category','scope','limit','offset')})
+    await _execute(hass,connection,msg,'list_objects',**{k:msg[k] for k in ('query','domain','area','floor','category','scope','family','sort','descending','limit','offset')})
 
 @websocket_api.websocket_command({vol.Required('type'):'dependency_graph/detail',vol.Required('identifier'):str})
 @websocket_api.require_admin

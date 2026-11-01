@@ -1,14 +1,21 @@
-
 {
   "domain": "dependency_graph",
   "name": "Dependency Graph",
-  "version": "1.0.0b1",
+  "version": "1.1.0b1",
   "documentation": "https://github.com/Taryck/analyse-dependances-HA",
   "issue_tracker": "https://github.com/Taryck/analyse-dependances-HA/issues",
-  "codeowners": ["@Taryck"],
+  "codeowners": [
+    "@Taryck"
+  ],
   "config_flow": true,
-  "dependencies": ["frontend", "http", "panel_custom", "websocket_api"],
-  "requirements": ["PyYAML>=6.0,<7"],
-  "iot_class": "local_polling"
+  "dependencies": [
+    "frontend",
+    "http",
+    "panel_custom",
+    "websocket_api"
+  ],
+  "requirements": [
+    "PyYAML>=6.0,<7"
+  ],
+  "iot_class": "local_push"
 }
-
