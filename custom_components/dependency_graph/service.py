@@ -20,6 +20,7 @@
 
 """Accès synchrone aux fichiers/SQLite, exécuté hors de la boucle HA."""
 import json
+import yaml
 from datetime import datetime, timezone
 import re
 from pathlib import Path
@@ -188,6 +189,42 @@ class GraphService:
                         add('category.'+scope+'.'+obj['category_id'],links_out,'Catégorie '+scope)
             data['organisation_depend_on']=links_out
             data['organisation_required_by']=links_in
+            # Les automatisations stockent leur définition YAML dans attributes.
+            # yaml.safe_dump produit du YAML lisible plutôt que du JSON.
+            # On évite de dupliquer toute l'entrée core.config_entries : seules
+            # les propriétés utiles de l'objet sont exposées dans configuration.
+            # Une entité créée depuis l'interface Template peut être reliée
+            # à une entrée de core.config_entries par son config_entry_id.
+            # Le registre d'entités contient l'identifiant, pas les formules.
+            # On récupère donc uniquement les options de CETTE entrée Template.
+            # Il ne faut jamais recopier toutes les entrées d'intégrations :
+            # elles pourraient contenir des jetons ou des mots de passe.
+            attrs = json.loads(db.db.execute(
+                'SELECT attributes FROM objects WHERE object_id=?', (oid,)
+            ).fetchone()[0] or '{}')
+            entry_id = attrs.get('config_entry_id')
+            if entry_id and domain not in ('automation', 'script', 'scene'):
+                entry = db.db.execute(
+                    'SELECT attributes FROM objects WHERE object_id=?',
+                    ('template_config.' + entry_id,)
+                ).fetchone()
+                if entry:
+                    template = json.loads(entry[0] or '{}')
+                    options = template.get('options') or {}
+                    if options:
+                        # On évite les doublons : la fiche conserve ses propriétés
+                        # dans object, et affiche les formules dans configuration.
+                        data['configuration'] = {
+                            'source': 'core.config_entries',
+                            'options': self._redact(options),
+                        }
+            if domain in ('automation', 'script', 'scene'):
+                config = data.get('configuration')
+                if isinstance(config, (dict, list)):
+                    data['configuration_yaml'] = yaml.safe_dump(
+                        self._redact(config), allow_unicode=True,
+                        sort_keys=False, default_flow_style=False,
+                    )
             return self._redact(data)
         finally: db.close()
 

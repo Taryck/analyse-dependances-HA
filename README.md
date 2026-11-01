@@ -51,3 +51,13 @@ La suite vérifie la compatibilité des imports du moteur, les données SQLite e
 - Les chemins des actions et déclencheurs sont affichés à partir de 1.
 
 **Icône HACS :** certaines versions de HACS n'affichent pas les logos locaux de `brand/` dans la liste des dépôts personnalisés. Cela ne peut pas être corrigé par le JavaScript de ce panneau.
+
+
+## Interface 1.5.0b1
+
+Le panneau s'appelle toujours `frontend/panel.js`. Après la mise à jour HACS,
+redémarrer Home Assistant et forcer le rechargement du navigateur (Ctrl+F5).
+Le détail affiche les automatismes au format YAML reconstruit depuis les
+données analysées (pas les commentaires ni la mise en page originale).
+Les entités Template liées à une entrée `core.config_entries` affichent les
+options de cette seule entrée, sans recopier toutes les entrées du registre.
