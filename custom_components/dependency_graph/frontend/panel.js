@@ -78,8 +78,8 @@
  * Le bouton Suivant est désactivé sur la dernière page.
  * Le serveur impose une limite maximale de lignes par requête.
  * La version du nom de fichier JavaScript évite les anciens caches.
- * Le logo est inclus dans le JavaScript pour éviter toute erreur de chemin statique.
- * Le PNG carré est également livré dans brand/ pour Home Assistant.
+ * Le logo est servi depuis le fichier unique brand/icon.png.
+ * Aucune copie supplémentaire du PNG n’est nécessaire.
  * Le démarrage du panneau ne déclenche pas de reconstruction SQLite.
  * Une reconstruction explicite recharge ensuite les valeurs de filtres.
  * Le code privilégie des nœuds DOM sûrs pour les données utilisateur.
@@ -152,7 +152,7 @@ class DependencyGraphPanel extends HTMLElement {
       @media(max-width:1150px){.layout{grid-template-columns:minmax(0,1fr)!important}}
     </style><div class="wrap">
     <!-- Le logo est servi par HA depuis le répertoire local de l'intégration. -->
-    <header class="topbar"><div class="heading"><img src="/dependency_graph_static/logo-v140.png" alt="Logo Dependency Graph"><h1>Graphe des dépendances</h1></div>
+    <header class="topbar"><div class="heading"><img src="/dependency_graph_brand/icon.png" alt="Logo Dependency Graph"><h1>Graphe des dépendances</h1></div>
       <div class="analysis-controls"><button id="analyze">♻ Analyser</button><small id="analyzed-at">Dernière analyse : inconnue</small></div></header>
     <div class="field"><label for="query">Rechercher un objet</label><input id="query" placeholder="Identifiant ou nom (*ballon*)"></div>
     <!-- Trois groupes distincts : chaque groupe garde ses deux filtres côte à côte. -->
