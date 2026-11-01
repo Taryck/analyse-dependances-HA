@@ -1,0 +1,8 @@
+{
+  "title": "Dependency Graph",
+  "config": {
+    "abort": {
+      "already_configured": "Already configured"
+    }
+  }
+}

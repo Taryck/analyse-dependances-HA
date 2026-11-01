@@ -1,7 +1,7 @@
 """Config entries : seules les entrées Template utiles aux dépendances sont conservées.
 Ne pas copier les secrets des autres intégrations dans SQLite.
 """
-from parsers.base_parser import BaseParser
+from ...parsers.base_parser import BaseParser
 
 class ConfigEntriesParser(BaseParser):
     def parse(self, payload, filename):

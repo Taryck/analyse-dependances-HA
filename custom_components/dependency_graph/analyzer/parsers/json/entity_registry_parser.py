@@ -1,4 +1,4 @@
-from parsers.base_parser import BaseParser
+from ...parsers.base_parser import BaseParser
 
 class EntityRegistryParser(BaseParser):
     def parse(self, payload, filename):

@@ -1,4 +1,4 @@
-from parsers.base_parser import BaseParser
+from ...parsers.base_parser import BaseParser
 
 HELPERS=('input_boolean','input_button','input_datetime','input_number','input_select','input_text')
 

@@ -1,4 +1,4 @@
-from readers.include_resolver import ORIGIN
+from ..readers.include_resolver import ORIGIN
 
 class BaseParser:
     def __init__(self, db):

@@ -1,4 +1,4 @@
-from parsers.base_parser import BaseParser
+from ...parsers.base_parser import BaseParser
 
 class TemplateParser(BaseParser):
     def parse(self, blocks, source_file="configuration.yaml"):

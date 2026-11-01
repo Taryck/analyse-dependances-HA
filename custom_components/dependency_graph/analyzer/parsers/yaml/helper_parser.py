@@ -1,5 +1,5 @@
-from parsers.base_parser import BaseParser
-from readers.include_resolver import ORIGIN
+from ...parsers.base_parser import BaseParser
+from ...readers.include_resolver import ORIGIN
 
 class MappingParser(BaseParser):
     def parse(self, domain, entries, source_file="configuration.yaml"):

@@ -21,8 +21,8 @@ def references(value,key):
     refs += [(m.group(1)+'.'+m.group(2),'jinja') for m in JINJA_DOT.finditer(value)]
     return list(dict.fromkeys(refs))
 
-def scan_all(root,db):
-    path=Path(__file__).resolve().parents[1]/'global_configuration.yaml'
+def scan_all(root,db,global_path=None):
+    path=Path(global_path) if global_path else Path(__file__).resolve().parents[1]/'global_configuration.yaml'
     data=yaml.safe_load(path.read_text(encoding='utf-8')) or {}
     db.db.execute('DELETE FROM dependencies')
     count=0

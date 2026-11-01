@@ -1,4 +1,4 @@
-from parsers.base_parser import BaseParser
+from ...parsers.base_parser import BaseParser
 
 class AutomationParser(BaseParser):
     def parse(self, entries, source_file="configuration.yaml"):

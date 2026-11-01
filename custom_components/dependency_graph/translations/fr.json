@@ -1,0 +1,8 @@
+{
+  "title": "Graphe des dépendances",
+  "config": {
+    "abort": {
+      "already_configured": "Déjà configuré"
+    }
+  }
+}

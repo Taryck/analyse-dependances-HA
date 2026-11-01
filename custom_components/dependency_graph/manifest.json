@@ -1,0 +1,19 @@
+{
+  "domain": "dependency_graph",
+  "name": "Dependency Graph",
+  "version": "1.0.0b1",
+  "documentation": "https://github.com/OWNER/REPOSITORY",
+  "issue_tracker": "https://github.com/OWNER/REPOSITORY/issues",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": [
+    "frontend",
+    "http",
+    "panel_custom",
+    "websocket_api"
+  ],
+  "requirements": [
+    "PyYAML>=6.0,<7"
+  ],
+  "iot_class": "local_push"
+}

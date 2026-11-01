@@ -1,4 +1,4 @@
-from readers.json_reader import read_json
+from ...readers.json_reader import read_json
 from .entity_registry_parser import EntityRegistryParser
 from .registry_parser import RegistryParser,REGISTRIES
 from .helper_parser import HelperJsonParser,HELPERS

@@ -1,5 +1,5 @@
 """Registres HA : les clés et structures diffèrent selon le registre."""
-from parsers.base_parser import BaseParser
+from ...parsers.base_parser import BaseParser
 
 REGISTRIES = {
     'core.area_registry': ('areas', 'id', 'area'),

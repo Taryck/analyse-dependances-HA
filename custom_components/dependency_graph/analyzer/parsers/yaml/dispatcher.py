@@ -1,7 +1,7 @@
 from .automation_parser import AutomationParser
 from .helper_parser import MappingParser
 from .template_parser import TemplateParser
-from readers.include_resolver import ORIGIN
+from ...readers.include_resolver import ORIGIN
 
 DOMAINS = ('script','scene','input_boolean','input_number','input_text','input_select',
            'input_datetime','input_button','counter','timer','schedule','group')
