@@ -37,3 +37,28 @@ class IntegrationEngineTests(unittest.TestCase):
         result=GraphService._redact({'options':{'api_token':'private','state':'{{ states("sensor.test") }}'}})
         self.assertEqual(result['options']['api_token'],'[MASQUÉ]')
         self.assertIn('sensor.test',result['options']['state'])
+
+class InterfaceFiltersTests(unittest.TestCase):
+    """Vérifie les règles métier qui alimentent les colonnes de l'interface."""
+
+    def test_organisation_not_counted_as_functional_dependency(self):
+        """Une pièce compte comme rattachement, pas comme dépendance fonctionnelle."""
+        with tempfile.TemporaryDirectory() as tmp:
+            service = GraphService(tmp)
+            service.storage.mkdir(parents=True, exist_ok=True)
+            db = Database(service.db_path)
+            db.add({'object_id':'floor.rdc','domain':'floor','object_type':'floor','source_type':'json','source_file':'core.floor_registry','name':'RDC','attributes':{}})
+            db.add({'object_id':'area.salon','domain':'area','object_type':'area','source_type':'json','source_file':'core.area_registry','name':'Salon','attributes':{'floor_id':'rdc'}})
+            db.add({'object_id':'sensor.test','domain':'sensor','object_type':'entity','source_type':'json','source_file':'core.entity_registry','name':'Test','entity_id':'sensor.test','attributes':{'area_id':'salon'}})
+            db.db.execute("UPDATE objects SET floor_id='rdc',floor_name='RDC' WHERE object_id='area.salon'")
+            db.db.execute("UPDATE objects SET area_id='salon',area_name='Salon',floor_name='RDC' WHERE object_id='sensor.test'")
+            db.commit()
+            db.close()
+            result=service.list_objects()
+            by_id={item['object_id']:item for item in result['items']}
+            self.assertEqual(by_id['sensor.test']['depend_on_count'],0)
+            self.assertEqual(by_id['area.salon']['depend_on_count'],0)
+            self.assertEqual(by_id['area.salon']['required_by_count'],1)
+            self.assertEqual(by_id['floor.rdc']['required_by_count'],1)
+            self.assertEqual(service.list_objects(no_dependencies=True)['total'],3)
+            self.assertEqual(service.list_objects(missing_only=True)['total'],0)

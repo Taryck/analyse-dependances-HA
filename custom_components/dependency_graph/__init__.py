@@ -19,7 +19,7 @@ async def async_setup_entry(hass,entry):
         ])
         await panel_custom.async_register_panel(
             hass,frontend_url_path=PANEL_PATH,webcomponent_name='dependency-graph-panel',
-            module_url='/dependency_graph_static/panel.js',sidebar_title='Dépendances',
+            module_url='/dependency_graph_static/panel-v130.js',sidebar_title='Dépendances',
             sidebar_icon='mdi:graph-outline',require_admin=True,embed_iframe=False)
     return True
 

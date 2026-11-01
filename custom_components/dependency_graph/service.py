@@ -1,5 +1,26 @@
+# ARCHITECTURE ET CONVENTIONS
+# ---------------------------
+# Ce module ne doit jamais écrire dans les registres sources Home Assistant.
+# Les écritures concernent exclusivement les fichiers propres à l'intégration.
+# Les données sont lues dans un thread via hass.async_add_executor_job.
+# Les identifiants HA restent inchangés : aucune renumérotation dans la base.
+# Les relations fonctionnelles viennent du code YAML/Jinja analysé.
+# Les relations d'organisation proviennent des registres HA (étage/pièce).
+# Une référence manquante est une cible absente de la table des objets.
+# La présentation française appartient au frontend, pas aux tables SQLite.
+# Les requêtes SQL utilisent des paramètres pour les valeurs fournies par l'UI.
+# Seuls les noms de colonnes de tri présents dans la liste blanche sont admis.
+# Les appels WebSocket sont réservés aux administrateurs de Home Assistant.
+# Les exceptions internes sont consignées dans les journaux du serveur.
+# Le navigateur ne reçoit pas les champs de secrets identifiés par _redact.
+# La date de dernière analyse est enregistrée après une reconstruction réussie.
+# Le bouton d'analyse reste manuel : aucun scan n'est programmé au démarrage.
+# La base peut être supprimée puis reconstruite sans modifier les sources HA.
+# Ce commentaire décrit les invariants de sécurité et les choix de conception.
+
 """Accès synchrone aux fichiers/SQLite, exécuté hors de la boucle HA."""
 import json
+from datetime import datetime, timezone
 import re
 from pathlib import Path
 from .analyzer.database import Database
@@ -23,14 +44,21 @@ class GraphService:
             refs = scan_all(self.root, db, self.global_path)
             objects = db.db.execute('SELECT count(*) FROM objects').fetchone()[0]
             errors = db.db.execute('SELECT count(*) FROM errors').fetchone()[0]
-            return {'objects': objects, 'dependencies': refs, 'errors': errors}
+            # La date est écrite seulement après la reconstruction complète.
+            # SQLite conserve cette information même après un redémarrage de HA.
+            # Une reconstruction échouée ne remplace pas la date du dernier succès.
+            db.db.execute("CREATE TABLE IF NOT EXISTS analysis_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+            analyzed_at = datetime.now(timezone.utc).isoformat()
+            db.db.execute("INSERT OR REPLACE INTO analysis_metadata (key, value) VALUES ('analyzed_at', ?)", (analyzed_at,))
+            db.db.commit()
+            return {'objects': objects, 'dependencies': refs, 'errors': errors, 'analyzed_at': analyzed_at}
         finally:
             db.close()
 
-    def list_objects(self, query='', domain='', area='', floor='', category='', scope='', family='', limit=500, offset=0, sort='object_id', descending=False):
+    def list_objects(self, query='', domain='', area='', floor='', category='', scope='', family='', limit=500, offset=0, sort='object_id', descending=False, missing_only=False, no_dependencies=False):
         """Inventaire paginé avec compteurs de voisins distincts et tri serveur."""
         if not self.db_path.is_file():
-            return {'items': [], 'total': 0, 'analyzed': False}
+            return {'items': [], 'total': 0, 'analyzed': False, 'analyzed_at': None}
         db = Database(self.db_path)
         try:
             conditions = ['1=1']; params = []
@@ -58,6 +86,9 @@ class GraphService:
                     conditions.append("o.domain IN ('automation','script','scene')")
                 elif family == 'entites':
                     conditions.append("o.domain NOT IN ('area','floor','category','label','automation','script','scene','input_boolean','input_datetime','input_number','input_select','input_text','input_button','counter','timer','schedule')")
+            # Les cases à cocher dépendent des compteurs calculés dans counted.
+            # On les applique dans la requête externe, avant LIMIT/OFFSET.
+            # Les filtres de famille/domaine sont appliqués en amont dans WHERE.
             where = ' AND '.join(conditions)
             total = db.db.execute('SELECT count(*) FROM objects o WHERE ' + where, params).fetchone()[0]
             columns = {'object_id':'object_id','name':'name','domain':'domain','floor_name':'floor_name','area_name':'area_name','depend_on_count':'depend_on_count','required_by_count':'required_by_count','missing_count':'missing_count'}
@@ -72,10 +103,30 @@ class GraphService:
                   (CASE WHEN o.area_id IS NOT NULL AND o.domain!='area' THEN 1 ELSE 0 END) + (CASE WHEN o.category_id IS NOT NULL AND o.domain NOT IN ('category') THEN 1 ELSE 0 END) + (CASE WHEN o.floor_id IS NOT NULL AND o.domain='area' THEN 1 ELSE 0 END) AS org_out,
                   (SELECT count(*) FROM objects x WHERE (o.domain='area' AND x.area_id=substr(o.object_id,6) AND x.object_id!=o.object_id) OR (o.domain='floor' AND x.domain='area' AND x.floor_id=substr(o.object_id,7)) OR (o.domain='category' AND x.category_id=substr(o.object_id,instr(o.object_id,'.')+1+instr(substr(o.object_id,instr(o.object_id,'.')+1),'.')) AND x.object_id!=o.object_id)) AS org_in
                 FROM objects o WHERE {where}
-              ) SELECT *,functional_out+org_out AS depend_on_count,functional_in+org_in AS required_by_count FROM counted
+              ) SELECT *,functional_out AS depend_on_count,
+                  functional_in+CASE WHEN domain IN ('area','floor','category','label') THEN org_in ELSE 0 END AS required_by_count
+              FROM counted
+              WHERE (NOT ? OR missing_count > 0)
+                AND (NOT ? OR functional_out = 0)
               ORDER BY {order} {direction},object_id ASC LIMIT ? OFFSET ?"""
-            rows = db.db.execute(sql, params + [min(limit,500),offset])
-            return {'items':[dict(r) for r in rows], 'total':total,'analyzed':True}
+            # Pour conserver une pagination correcte, le total doit respecter
+            # exactement les mêmes filtres calculés que la requête de lignes.
+            # Une sous-requête compte les résultats sans LIMIT/OFFSET.
+            count_sql = sql.rsplit(' ORDER BY ', 1)[0]
+            count_sql = count_sql.replace('SELECT *,functional_out AS depend_on_count,',
+                'SELECT *,functional_out AS depend_on_count,')
+            # Les deux booléens SQLite (0/1) sont liés via des paramètres.
+            filtered_params = params + [int(missing_only), int(no_dependencies)]
+            total = db.db.execute('SELECT COUNT(*) FROM (' + count_sql + ')', filtered_params).fetchone()[0]
+            rows = db.db.execute(sql, filtered_params + [min(limit,500),offset])
+            # Le vieux fichier SQLite peut ne pas posséder cette table.
+            # Une analyse lancée avec cette version la créera automatiquement.
+            exists = db.db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='analysis_metadata'").fetchone()
+            timestamp = None
+            if exists:
+                record = db.db.execute("SELECT value FROM analysis_metadata WHERE key='analyzed_at'").fetchone()
+                timestamp = record[0] if record else None
+            return {'items':[dict(r) for r in rows], 'total':total,'analyzed':True,'analyzed_at':timestamp}
         finally:
             db.close()
 
@@ -105,6 +156,11 @@ class GraphService:
             links_out = []
             links_in = []
             def add(target, dest, label):
+                """Ajoute un lien d'organisation seulement si la cible existe.
+
+                La fiche doit pouvoir être ouverte depuis l'interface.
+                On ignore donc les IDs de pièces/étages supprimés du registre.
+                """
                 if target and db.db.execute('SELECT 1 FROM objects WHERE object_id=?', (target,)).fetchone():
                     dest.append({'id':target,'file':'Registre Home Assistant','locations':[{'path':label}]})
             if domain == 'area':
