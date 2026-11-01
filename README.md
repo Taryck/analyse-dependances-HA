@@ -6,13 +6,12 @@ Explorateur des entités, assistants, automatisations, catégories et dépendanc
 
 ## Installation (dépôt personnalisé HACS)
 
-1. Publier **le contenu de ce ZIP à la racine d’un dépôt GitHub** (pas le ZIP lui-même).
-2. HACS → menu ⋮ → Dépôts personnalisés → URL de votre dépôt → catégorie **Integration**.
-3. Installer « Dependency Graph » et **redémarrer Home Assistant**.
-4. Paramètres → Appareils et services → Ajouter une intégration → « Dependency Graph ».
-5. Ouvrir **Dépendances** dans la barre latérale, puis cliquer **Analyser**.
+1. HACS → menu ⋮ → Dépôts personnalisés → URL de votre dépôt → catégorie **Integration**.
+2. Installer « Dependency Graph » et **redémarrer Home Assistant**.
+3. Paramètres → Appareils et services → Ajouter une intégration → « Dependency Graph ».
+4. Ouvrir **Dépendances** dans la barre latérale, puis cliquer **Analyser**.
 
-Le panneau est réservé aux administrateurs. Il propose recherche, filtres domaine/catégorie,
+Le panneau est réservé aux dévelopeurs & administrateurs. Il propose recherche, filtres domaine/catégorie,
 listes paginées, fiches JSON, dépendances entrantes/sortantes et liens de navigation.
 
 ## Stockage
@@ -26,11 +25,9 @@ listes paginées, fiches JSON, dépendances entrantes/sortantes et liens de navi
 ## Limites / sécurité
 
 - **Bêta** : les API de panneaux peuvent évoluer selon la version de Home Assistant.
-- Les commentaires YAML/Jinja ne sont pas considérés comme dépendances ; les expressions dynamiques restent partiellement non résolues.
-- `missing: true` signifie absent de l'inventaire, pas forcément absent du Home Assistant actif.
+- Les commentaires YAML/Jinja ne sont pas considérés comme dépendances
 - Les informations brutes des registres peuvent contenir des métadonnées sensibles ; accès admin obligatoire.
-- Cette version n'est **pas encore validée sur une instance Home Assistant réelle**.
-- Avant publication publique, remplacer les URL `OWNER/REPOSITORY` dans `manifest.json`, publier le dépôt et vérifier HACS/hassfest.
+- Cette version n'est **pas encore validée sur un nombre important d'instance Home Assistant**.
 
 ## Validation locale du moteur
 
@@ -40,10 +37,10 @@ python -m unittest discover -s tests -v
 
 <<<<<<< Updated upstream
 ## Commandes
-
-```powershell
-py main.py                      # aide et valeurs trouvées dans la base
-py main.py analize "L:\HomeAssitant\VM" --verbose
+Soit sur une copie, soit sur un partage samba
+```py main.py                      # aide et valeurs trouvées dans la base
+py main.py analize "C:\TEMP\HA" --verbose
+py main.py analize "\\[HA IP]\config" --verbose
 py main.py objects_list --domain sensor
 py main.py objects_list --Filter "ID=*sdb*rdc*"
 py main.py objects_list --category "Champs Calculés"
@@ -54,9 +51,7 @@ py main.py errors
 py main.py detail --help
 ```
 
-**`analize`** remplace les anciens `scan` et `deps` : il recrée l'inventaire,
-puis les dépendances. Les anciennes commandes `objects`, `object` et
-`dependencies` ont été retirées.
+**`analize`** analyse les objets HA et leur dépendances.
 
 **`objects_list`** affiche une ligne par objet, avec des filtres.
 
@@ -74,7 +69,7 @@ Les catégories sont lues dans le registre même si aucun objet ne les utilise.
 
 ## Comment fonctionnent les tests ?
 
-```powershell
+```
 py -m unittest discover -s tests -v
 ```
 
@@ -103,54 +98,17 @@ prouve pas que toutes les structures possibles de Home Assistant sont gérées.
 ## Limitations de l'analyse statique
 
 Les références `entity_id` explicites et certains appels Jinja (`states`,
-`is_state`, `state_attr`...) sont reconnus. Les commentaires YAML et les blocs
+`is_state`, `state_attr`...) sont reconnus, ce qui veut dire que cerains autres,
+plus exotiques ne sont pas reconnus. Les commentaires YAML et les blocs
 `{# ... #}` Jinja sont exclus. Les références construites dynamiquement et les
 relations indirectes via `device_id` ne sont pas toutes résolues. Les
 expressions complexes peuvent nécessiter un analyseur Jinja plus complet.
 
 ## Préparation à une future application Home Assistant
 
-Cette version est **une application CLI**, pas encore une app Home Assistant.
-La séparation actuelle vise à faciliter une future interface graphique :
+Cette version est **une intégration HACS**, mais peut aussi être testé et utilisée
+sur une copie de la configuration en **mode CLI**  (branche local-cli).
 
-- `readers/` : chargement de fichiers, sans interface utilisateur ;
-- `parsers/` : interprétation des objets HA ;
-- `inventory/` : orchestration de l'inventaire ;
-- `dependencies/` : analyse des références ;
-- `database.py` : persistance SQLite ;
-- `main.py` : interface CLI, destinée à être remplacée ou complétée par une API.
 
-Pour une future app Home Assistant, prévoir une configuration du chemin source,
-un dossier persistant pour SQLite, une exécution sans privilèges excessifs,
-un traitement en lecture seule du répertoire de configuration, ainsi qu'une
-interface HTTP indépendante de la CLI. **Aucun dépôt d'apps, Dockerfile,
-manifest ou interface Web n'est créé à ce stade.**
+## Version 1.0 beta
 
-## Version V8
-
-- `detail "*hc*hp*"` accepte `*` et `?`, sous réserve d'une seule correspondance.
-- Les relations sont regroupées par identifiant avec `file` au même niveau que
-  `id` et des `locations` ne contenant que `path`.
-- `depend_on` ajoute `missing: true` si la cible n'est pas inventoriée.
-  Cela indique une **absence dans l'inventaire**, pas nécessairement une
-  entité réellement inexistante dans Home Assistant (export incomplet possible).
-- Les champs vides/null et `supported_features: 0` sont masqués dans `detail`.
-  Les zéros métier (seuils, valeurs, etc.) sont conservés.
-- `values` distingue les catégories `helpers` et `automation`.
-- `objects_list --category-scope helpers` ou `--category-scope automation`
-  filtre explicitement leur portée.
-- Le fichier `HACS_PREPARATION.md` décrit la future intégration HACS.
-
-Exemples :
-
-```powershell
-py main.py analize "L:\HomeAssitant\VM" --verbose
-py main.py detail "*hc*hp*"
-py main.py values
-py main.py objects_list --domain category --category-scope helpers
-py main.py objects_list --domain category --category-scope automation
-py -m unittest discover -s tests -v
-```
-=======
-La suite vérifie la compatibilité des imports du moteur, les données SQLite et le regroupement des liens.
->>>>>>> Stashed changes
