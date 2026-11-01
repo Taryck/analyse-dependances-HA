@@ -125,3 +125,19 @@ py main.py objects_list --domain category --category-scope helpers
 py main.py objects_list --domain category --category-scope automation
 py -m unittest discover -s tests -v
 ```
+
+
+## Correctif V9 : tests Windows (WinError 32)
+
+Les tests de la V8 utilisaient `with sqlite3.connect(...) as con`. Ce bloc
+valide ou annule la transaction, **mais ne ferme pas la connexion SQLite**.
+Sous Windows, `TemporaryDirectory.cleanup()` ne peut alors pas supprimer
+`test.db` : `PermissionError: [WinError 32]`.
+
+Les tests utilisent maintenant `with closing(sqlite3.connect(...)) as con, con`
+(`contextlib.closing`), ce qui ferme réellement la connexion même en cas
+d'exception. Un test renomme aussi la base après consultation pour vérifier
+que le fichier n'est plus verrouillé. Aucun changement du moteur d'analyse
+ni de la structure des données.
+
+Commande : `py -m unittest discover -s tests -v`

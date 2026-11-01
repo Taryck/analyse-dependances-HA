@@ -6,6 +6,7 @@ exécute la même CLI que l'utilisateur et vérifie la base SQLite résultante.
 Les données fictives disparaissent à la fin du test.
 """
 import json
+from contextlib import closing
 import sqlite3
 import subprocess
 import sys
@@ -20,6 +21,9 @@ class AnalysisTests(unittest.TestCase):
     def setUp(self):
         # Un répertoire isolé empêche les tests d'altérer les données réelles.
         self.tmp = tempfile.TemporaryDirectory()
+        # Sous Windows, SQLite verrouille le fichier tant que la connexion
+        # reste ouverte. Les connexions de vérification sont donc toujours
+        # fermées explicitement via contextlib.closing (voir les tests).
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
         self.ha = self.root / 'ha'
@@ -67,7 +71,7 @@ class AnalysisTests(unittest.TestCase):
     def test_analysis_and_comments(self):
         result = self.cli('analize', self.ha, '--db', self.db)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        with sqlite3.connect(self.db) as con:
+        with closing(sqlite3.connect(self.db)) as con, con:
             refs = {(r[0], r[1]) for r in con.execute(
                 'SELECT source_id,target_id FROM dependencies')}
             self.assertIn(('automation_config.123', 'sensor.reel'), refs)
@@ -87,13 +91,18 @@ class AnalysisTests(unittest.TestCase):
         self.assertIn('depend_on', parsed)
         self.assertIn('required_by', parsed)
         self.assertEqual(self.cli('analize', self.ha, '--db', self.db).returncode, 0)
+        # Régression Windows : après les lectures SQLite, le fichier doit
+        # pouvoir être renommé, puis supprimé par TemporaryDirectory.
+        moved = self.db.with_suffix('.renamed')
+        self.db.rename(moved)
+        moved.rename(self.db)
 
     def test_grouped_locations_and_aliases(self):
         self.assertEqual(self.cli('analize', self.ha, '--db', self.db).returncode, 0)
         result = self.cli('detail', 'sensor.reel', '--db', self.db)
         # sensor.reel n'est pas inventorié : on insère un objet registre fictif.
         # Cela vérifie la présentation des dépendances entrantes.
-        with sqlite3.connect(self.db) as con:
+        with closing(sqlite3.connect(self.db)) as con, con:
             con.execute('''INSERT INTO objects(object_id,domain,object_type,source_type,
                         source_file,name,entity_id,attributes) VALUES(?,?,?,?,?,?,?,?)''',
                         ('sensor.reel', 'sensor', 'entity', 'json', 'core.entity_registry',
@@ -125,7 +134,7 @@ class AnalysisTests(unittest.TestCase):
         self.assertIn('Tempo', values.stdout)
         detail = self.cli('detail', 'sensor.exemple', '--db', self.db)
         self.assertEqual(json.loads(detail.stdout)['object']['category_name'], 'Tempo')
-        with sqlite3.connect(self.db) as con:
+        with closing(sqlite3.connect(self.db)) as con, con:
             self.assertEqual(con.execute("SELECT count(*) FROM objects WHERE domain='category'").fetchone()[0], 2)
 
     def test_help_and_ambiguous_identifier(self):
