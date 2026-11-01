@@ -94,16 +94,21 @@ class GraphService:
             columns = {'object_id':'object_id','name':'name','domain':'domain','floor_name':'floor_name','area_name':'area_name','depend_on_count':'depend_on_count','required_by_count':'required_by_count','missing_count':'missing_count'}
             order = columns.get(sort, 'object_id')
             direction = 'DESC' if descending else 'ASC'
+            # Les compteurs fonctionnels sont séparés des liens de classement.
+            # Une pièce rattachée à un étage ne dépend pas fonctionnellement de lui.
+            # Le domaine Organisation HA force donc « Dépend de » à zéro.
+            # En revanche, « Utilisé par » inclut les objets classés dans une pièce.
+            # On ne mélange pas le nombre d'occurrences YAML avec les objets distincts.
             # La requête calcule les compteurs sans charger toutes les dépendances en Python.
             sql = f"""WITH counted AS (
                 SELECT o.object_id,o.name,o.domain,o.object_type,o.source_file,o.area_name,o.floor_name,o.category_name,
-                  (SELECT count(DISTINCT d.target_id) FROM dependencies d WHERE d.source_id=o.object_id OR d.source_id=o.entity_id) AS functional_out,
-                  (SELECT count(DISTINCT d.source_id) FROM dependencies d WHERE d.target_id=o.object_id OR d.target_id=o.entity_id) AS functional_in,
-                  (SELECT count(DISTINCT d.target_id) FROM dependencies d LEFT JOIN objects x ON x.object_id=d.target_id OR x.entity_id=d.target_id WHERE (d.source_id=o.object_id OR d.source_id=o.entity_id) AND x.object_id IS NULL) AS missing_count,
+                  (SELECT count(DISTINCT d.target_id) FROM dependencies d WHERE (d.source_id=o.object_id OR d.source_id=o.entity_id) AND d.reference_type NOT IN ('organisation','area','floor','category','label')) AS functional_out,
+                  (SELECT count(DISTINCT d.source_id) FROM dependencies d WHERE (d.target_id=o.object_id OR d.target_id=o.entity_id) AND d.reference_type NOT IN ('organisation','area','floor','category','label')) AS functional_in,
+                  (SELECT count(DISTINCT d.target_id) FROM dependencies d LEFT JOIN objects x ON x.object_id=d.target_id OR x.entity_id=d.target_id WHERE (d.source_id=o.object_id OR d.source_id=o.entity_id) AND d.reference_type NOT IN ('organisation','area','floor','category','label') AND x.object_id IS NULL) AS missing_count,
                   (CASE WHEN o.area_id IS NOT NULL AND o.domain!='area' THEN 1 ELSE 0 END) + (CASE WHEN o.category_id IS NOT NULL AND o.domain NOT IN ('category') THEN 1 ELSE 0 END) + (CASE WHEN o.floor_id IS NOT NULL AND o.domain='area' THEN 1 ELSE 0 END) AS org_out,
                   (SELECT count(*) FROM objects x WHERE (o.domain='area' AND x.area_id=substr(o.object_id,6) AND x.object_id!=o.object_id) OR (o.domain='floor' AND x.domain='area' AND x.floor_id=substr(o.object_id,7)) OR (o.domain='category' AND x.category_id=substr(o.object_id,instr(o.object_id,'.')+1+instr(substr(o.object_id,instr(o.object_id,'.')+1),'.')) AND x.object_id!=o.object_id)) AS org_in
                 FROM objects o WHERE {where}
-              ) SELECT *,functional_out AS depend_on_count,
+              ) SELECT *,CASE WHEN domain IN ('area','floor','category','label') THEN 0 ELSE functional_out END AS depend_on_count,
                   functional_in+CASE WHEN domain IN ('area','floor','category','label') THEN org_in ELSE 0 END AS required_by_count
               FROM counted
               WHERE (NOT ? OR missing_count > 0)
@@ -113,8 +118,6 @@ class GraphService:
             # exactement les mêmes filtres calculés que la requête de lignes.
             # Une sous-requête compte les résultats sans LIMIT/OFFSET.
             count_sql = sql.rsplit(' ORDER BY ', 1)[0]
-            count_sql = count_sql.replace('SELECT *,functional_out AS depend_on_count,',
-                'SELECT *,functional_out AS depend_on_count,')
             # Les deux booléens SQLite (0/1) sont liés via des paramètres.
             filtered_params = params + [int(missing_only), int(no_dependencies)]
             total = db.db.execute('SELECT COUNT(*) FROM (' + count_sql + ')', filtered_params).fetchone()[0]
@@ -196,6 +199,16 @@ class GraphService:
             result={}
             for col in ('domain','area_name','floor_name'):
                 result[col]=[r[0] for r in db.db.execute(f'SELECT DISTINCT {col} FROM objects WHERE {col} IS NOT NULL ORDER BY {col}')]
+            # Un couple (étage, pièce) provient directement des objets area.
+            # area.floor_id est enrichi depuis core.area_registry lors de l'analyse.
+            # floor_name et area_name sont des noms affichables, pas des identifiants.
+            # Le DISTINCT évite les doublons si plusieurs objets pointent vers la pièce.
+            # Les pièces sans étage ne sont affichées que lorsque « Tous les étages » est choisi.
+            # Le navigateur reçoit un tableau de dictionnaires simple à filtrer.
+            result['floor_areas'] = [
+                {'floor': row['floor_name'], 'area': row['name']}
+                for row in db.db.execute("SELECT DISTINCT floor_name, name FROM objects WHERE domain = 'area' AND floor_name IS NOT NULL AND name IS NOT NULL ORDER BY floor_name, name")
+            ]
             for scope in ('helpers','automation'):
                 result['category_'+scope]=[r[0] for r in db.db.execute('SELECT name FROM objects WHERE object_id LIKE ? ORDER BY name',(f'category.{scope}.%',))]
             return result

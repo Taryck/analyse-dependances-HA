@@ -46,6 +46,7 @@
  * Le logo est cadré dans un carré sans étirement de l'image source.
  * Le titre reste distinct des actions de maintenance.
  * Le bouton Analyser est situé dans l'en-tête.
+ * Son icône est le symbole de recyclage demandé par l’utilisateur.
  * La date affichée provient d'une ligne SQLite persistante.
  * Une date absente déclenche le style de mise en évidence.
  * Une date de plus de vingt-quatre heures déclenche aussi ce style.
@@ -77,7 +78,8 @@
  * Le bouton Suivant est désactivé sur la dernière page.
  * Le serveur impose une limite maximale de lignes par requête.
  * La version du nom de fichier JavaScript évite les anciens caches.
- * La version de l'URL du logo joue le même rôle.
+ * Le logo est inclus dans le JavaScript pour éviter toute erreur de chemin statique.
+ * Le PNG carré est également livré dans brand/ pour Home Assistant.
  * Le démarrage du panneau ne déclenche pas de reconstruction SQLite.
  * Une reconstruction explicite recharge ensuite les valeurs de filtres.
  * Le code privilégie des nœuds DOM sûrs pour les données utilisateur.
@@ -110,7 +112,7 @@ class DependencyGraphPanel extends HTMLElement {
     this.shadowRoot.innerHTML=`<style>
       :host{display:block;background:var(--primary-background-color);color:var(--primary-text-color);font:14px system-ui,sans-serif;min-height:100%}
       .wrap{width:calc(100% - 44px);max-width:none;margin:auto;padding:18px 0}
-      .filters{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px;margin-bottom:12px}
+      /* Les filtres sont regroupés exclusivement dans les trois fieldsets. */
       .field{display:flex;flex-direction:column;gap:5px;min-width:0}.search{grid-column:span 4}.field label{font-size:12px;color:var(--secondary-text-color)}
       input,select,button{background:var(--card-background-color);color:var(--primary-text-color);border:1px solid var(--divider-color);border-radius:7px;padding:9px;font:inherit;min-width:0}
       button,th.sort{cursor:pointer}button:hover,a:hover,th.sort:hover{color:var(--primary-color)}
@@ -135,11 +137,11 @@ class DependencyGraphPanel extends HTMLElement {
       .checkboxes label{display:flex;align-items:center;gap:7px}
       .checkboxes input{min-width:auto}
       @media(max-width:1100px){.filter-groups{grid-template-columns:1fr}}
-      .heading{display:flex;align-items:center;gap:15px;margin-bottom:14px}.heading img{width:64px;height:64px;object-fit:contain;aspect-ratio:1/1;flex-shrink:0}.heading h1{margin:0;font-size:25px}.toolbar{display:flex;align-items:end;justify-content:flex-end}.toolbar button{width:100%}.sort:hover{text-decoration:underline}.sort{user-select:none}.meta-name{font-size:11px;color:var(--secondary-text-color);margin-top:3px}.object-cell{min-width:165px}.counter{font-variant-numeric:tabular-nums}.details-head{overflow-wrap:anywhere}
+      .heading{display:flex;align-items:center;gap:15px;margin-bottom:14px}.heading img{width:64px;height:64px;object-fit:contain;aspect-ratio:1/1;border-radius:8px;background:white;padding:3px;box-sizing:border-box;flex-shrink:0}.heading h1{margin:0;font-size:25px}.toolbar{display:flex;align-items:end;justify-content:flex-end}.toolbar button{width:100%}.sort:hover{text-decoration:underline}.sort{user-select:none}.meta-name{font-size:11px;color:var(--secondary-text-color);margin-top:3px}.object-cell{min-width:165px}.counter{font-variant-numeric:tabular-nums}.details-head{overflow-wrap:anywhere}
     </style><div class="wrap">
     <!-- Le logo est servi par HA depuis le répertoire local de l'intégration. -->
-    <header class="topbar"><div class="heading"><img src="/dependency_graph_static/logo.png?v=130" alt="Logo Dependency Graph"><h1>Graphe des dépendances</h1></div>
-      <div class="analysis-controls"><button id="analyze">⟳ Analyser</button><small id="analyzed-at">Dernière analyse : inconnue</small></div></header>
+    <header class="topbar"><div class="heading"><img src="data:image/png;base64,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" alt="Logo Dependency Graph"><h1>Graphe des dépendances</h1></div>
+      <div class="analysis-controls"><button id="analyze">♻ Analyser</button><small id="analyzed-at">Dernière analyse : inconnue</small></div></header>
     <div class="field"><label for="query">Rechercher un objet</label><input id="query" placeholder="Identifiant ou nom (*ballon*)"></div>
     <!-- Trois groupes distincts : chaque groupe garde ses deux filtres côte à côte. -->
     <div class="filter-groups">
@@ -168,7 +170,8 @@ class DependencyGraphPanel extends HTMLElement {
     for(const id of ['family','domain','scope','category','floor','area'])this.$(id).addEventListener('change',()=>{this.offset=0;if(id==='family')this.domains();if(id==='scope')this.categories();if(id==='floor')this.areas();this.list()});
     this.shadowRoot.querySelectorAll('th[data-sort]').forEach(th=>th.onclick=()=>{const next=th.dataset.sort;this.descending=this.sort===next?!this.descending:false;this.sort=next;this.offset=0;this.updateSort();this.list()});
     this.$('missing-only').onchange=()=>{this.offset=0;this.list()};this.$('no-dependencies').onchange=()=>{this.offset=0;this.list()};
-    this.$('prev').onclick=()=>{this.offset=Math.max(0,this.offset-this.limit);this.list()};this.$('next').onclick=()=>{this.offset+=this.limit;this.list()};this.$('analyze').onclick=()=>this.analyze();
+    this.$('prev').onclick=()=>{this.offset=Math.max(0,this.offset-this.limit);this.list()};this.$('next').onclick=()=>{this.offset+=this.limit;this.list()};// Le bouton est branché une seule fois, au montage du panneau.
+    this.$('analyze').onclick=()=>this.analyze();
     if(this._hass)this.start();
   }
   // Point d’entrée unique pour appeler le serveur Home Assistant.
@@ -190,6 +193,17 @@ class DependencyGraphPanel extends HTMLElement {
    * la maintenance et le diagnostic depuis la console du navigateur.
    */
   fill(id,values){const el=this.$(id),selected=el.value;while(el.options.length>1)el.remove(1);for(const value of values){const opt=document.createElement('option');opt.value=value;opt.textContent=value;el.add(opt)}el.value=values.includes(selected)?selected:''}
+  // Chaque méthode ci-dessous est indépendante de l'analyse lourde.
+  // Les sélecteurs n'envoient que des critères de lecture au serveur.
+  // Les objets HA et leurs identifiants ne sont jamais modifiés.
+  // La recherche ne reconstruit pas la base et reste rapide.
+  // Les compteurs viennent de SQLite et non du nombre de lignes affichées.
+  // Les regroupements sont une convention de l'interface uniquement.
+  // Le filtre de localisation est hiérarchique : étage puis pièce.
+  // La valeur d'une pièce est son nom affiché dans le registre HA.
+  // Si une pièce est déplacée d'étage, le prochain scan met à jour la liste.
+  // L'utilisateur peut conserver ses autres filtres en changeant d'étage.
+  // Le serveur garde la responsabilité de valider toutes les requêtes.
   // Les domaines proposés changent avec la famille choisie.
   /**
    * domains : Déduit les domaines autorisés de la famille. Les tableaux décrivent la classification métier de l’interface, pas des objets nouveaux.
@@ -212,8 +226,13 @@ class DependencyGraphPanel extends HTMLElement {
    */
   areas(){
     const floor=this.$('floor').value;
+    /* floor_areas est renvoyé par le serveur : chaque ligne associe un étage et une pièce. */
+    /* On ne déduit jamais un étage du nom d’une pièce. */
     const pairs=this.values.floor_areas||[];
+    /* Sans étage choisi, toutes les pièces sont proposées. */
+    /* Avec un étage, seules ses pièces restent disponibles. */
     const names=floor?pairs.filter(p=>p.floor===floor).map(p=>p.area):this.values.area_name||[];
+    /* fill conserve la sélection si elle existe encore, sinon la remet à « Toutes ». */
     this.fill('area',[...new Set(names)].sort((a,b)=>a.localeCompare(b,'fr')));
   }
 
@@ -251,7 +270,99 @@ class DependencyGraphPanel extends HTMLElement {
    * Les étapes sont volontairement séparées de la présentation pour faciliter
    * la maintenance et le diagnostic depuis la console du navigateur.
    */
-  async list(){try{const args={query:this.$('query').value,family:this.$('family').value,domain:this.$('domain').value,scope:this.$('scope').value,category:this.$('category').value,floor:this.$('floor').value,area:this.$('area').value,offset:this.offset,limit:this.limit,sort:this.sort,descending:this.descending,missing_only:this.$('missing-only').checked,no_dependencies:this.$('no-dependencies').checked};const result=await this.api('list',args);this.$('total').textContent=`(${result.total})`;this.analysisTime(result.analyzed_at);const body=this.$('rows');body.replaceChildren();for(const obj of result.items){const tr=document.createElement('tr');const td=document.createElement('td');td.className='object-cell';td.append(this.link(obj.object_id));tr.append(td);for(const value of [obj.name,obj.floor_name,obj.area_name,obj.depend_on_count,obj.required_by_count]){const cell=document.createElement('td');cell.textContent=value??'—';if(typeof value==='number')cell.className='num';tr.append(cell)}const state=document.createElement('td');state.className='num';state.textContent=obj.missing_count?'⚠ '+obj.missing_count:'✓';state.title=obj.missing_count?obj.missing_count+' référence(s) manquante(s)':'Aucune référence manquante';if(obj.missing_count)state.classList.add('missing');tr.append(state);body.append(tr)}this.$('prev').disabled=this.offset===0;this.$('next').disabled=this.offset+this.limit>=result.total;this.$('page').textContent=result.total?`${this.offset+1}–${Math.min(this.offset+this.limit,result.total)} / ${result.total}`:'0';this.status(result.analyzed?'Analyse disponible':'Cliquez sur Analyser pour créer l’inventaire.')}catch(e){this.status('Erreur de liste : '+e.message)}}
+  async list() {
+    // 1. Préparer les critères de recherche choisis dans le panneau.
+    // Le texte et les listes sont lus au moment précis de la requête.
+    // On ne conserve pas de copie des filtres dans une seconde variable globale.
+    // Ainsi, l'état affiché correspond toujours aux critères envoyés à SQLite.
+    const args = {
+      query: this.$('query').value,
+      family: this.$('family').value,
+      domain: this.$('domain').value,
+      scope: this.$('scope').value,
+      category: this.$('category').value,
+      floor: this.$('floor').value,
+      area: this.$('area').value,
+      offset: this.offset,
+      limit: this.limit,
+      sort: this.sort,
+      descending: this.descending,
+      missing_only: this.$('missing-only').checked,
+      no_dependencies: this.$('no-dependencies').checked
+    };
+
+    try {
+      // 2. Demander au serveur une seule page d'objets.
+      // Le serveur est responsable du filtrage et du tri.
+      // Le navigateur n'a donc pas besoin de charger tous les objets en mémoire.
+      const result = await this.api('list', args);
+      this.$('total').textContent = `(${result.total})`;
+      this.analysisTime(result.analyzed_at);
+
+      // 3. Effacer uniquement les anciennes lignes du tableau.
+      // replaceChildren évite de concaténer du HTML potentiellement dangereux.
+      // Chaque valeur est insérée comme texte, jamais interprétée comme du code.
+      const body = this.$('rows');
+      body.replaceChildren();
+
+      for (const obj of result.items) {
+        // 4. Créer une ligne par objet retourné par SQLite.
+        // Le lien de la première colonne ouvre la fiche dans le panneau de droite.
+        // Les colonnes suivantes conservent explicitement étage et pièce.
+        const row = document.createElement('tr');
+        const identity = document.createElement('td');
+        identity.className = 'object-cell';
+        identity.append(this.link(obj.object_id));
+        row.append(identity);
+
+        // 5. Ajouter les propriétés et compteurs calculés côté Python.
+        // « Dépend de » exclut les rattachements organisationnels.
+        // « Utilisé par » inclut les membres des pièces/étages/catégories.
+        // Une valeur nulle s'affiche comme un tiret et non comme « null ».
+        const columns = [
+          obj.name, obj.floor_name, obj.area_name,
+          obj.depend_on_count, obj.required_by_count
+        ];
+        for (const value of columns) {
+          const cell = document.createElement('td');
+          cell.textContent = value ?? '—';
+          if (typeof value === 'number') cell.className = 'num';
+          row.append(cell);
+        }
+
+        // 6. Signaler une référence absente dans la dernière colonne.
+        // L'icône d'alerte est visible même sans ouvrir la fiche.
+        // Le survol donne le nombre exact de références manquantes.
+        const state = document.createElement('td');
+        state.className = 'num';
+        state.textContent = obj.missing_count ? '⚠ ' + obj.missing_count : '✓';
+        state.title = obj.missing_count
+          ? obj.missing_count + ' référence(s) manquante(s)'
+          : 'Aucune référence manquante';
+        if (obj.missing_count) state.classList.add('missing');
+        row.append(state);
+        body.append(row);
+      }
+
+      // 7. Mettre à jour les commandes de pagination.
+      // « Précédent » est interdit au début de la liste.
+      // « Suivant » est interdit quand il n'y a plus de page.
+      this.$('prev').disabled = this.offset === 0;
+      this.$('next').disabled = this.offset + this.limit >= result.total;
+      this.$('page').textContent = result.total
+        ? `${this.offset + 1}–${Math.min(this.offset + this.limit, result.total)} / ${result.total}`
+        : '0';
+
+      // 8. Confirmer la lecture de l'inventaire.
+      // La présence de la base n'entraîne pas une nouvelle analyse automatique.
+      this.status(result.analyzed
+        ? 'Analyse disponible'
+        : 'Cliquez sur Analyser pour créer l’inventaire.');
+    } catch (error) {
+      // Une erreur WebSocket reste visible plutôt que de vider silencieusement l'écran.
+      this.status('Erreur de liste : ' + error.message);
+    }
+  }
   // Tous les identifiants sont cliquables et ouvrent leur fiche.
   /**
    * link : Construit un lien interne vers la fiche de l’objet sans recharger la page Home Assistant.

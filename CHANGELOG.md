@@ -1,3 +1,10 @@
+## 1.4.0b1
+
+- Correction réelle de `floor_areas` côté Python.
+- Logo carré et embarqué dans le panneau, nouveaux fichiers de marque.
+- Compteurs fonctionnels séparés des rattachements.
+- Nouveau fichier JavaScript pour contourner le cache.
+
 ## 1.2.0b1
 
 - Nouvelle interface large avec filtres Famille → Domaine, Étage → Pièce et catégories HA distinctes.

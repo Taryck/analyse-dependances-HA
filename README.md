@@ -39,3 +39,15 @@ python -m unittest discover -s tests -v
 ```
 
 La suite vérifie la compatibilité des imports du moteur, les données SQLite et le regroupement des liens.
+
+
+## Version 1.4.0b1 — vérifications UI
+
+- Logo carré (512×512) avec marges, sans étirement. Le panneau embarque son image pour ne pas dépendre d'une URL statique.
+- Trois cadres **Objets**, **Catégorie**, **Localisation**, deux listes par cadre.
+- Le serveur fournit `floor_areas` pour filtrer les pièces d'un étage.
+- Le compteur « Dépend de » ignore les relations organisationnelles.
+- La date de dernière analyse est persistée dans SQLite, sans analyse automatique.
+- Les chemins des actions et déclencheurs sont affichés à partir de 1.
+
+**Icône HACS :** certaines versions de HACS n'affichent pas les logos locaux de `brand/` dans la liste des dépôts personnalisés. Cela ne peut pas être corrigé par le JavaScript de ce panneau.
