@@ -7,6 +7,11 @@ ENTITY = re.compile(r'^[a-z_][a-z0-9_]*\.[a-z0-9_]+$',re.I)
 JINJA_COMMENT = re.compile(r'{#.*?#}',re.S)
 JINJA_BLOCK = re.compile(r'({{.*?}}|{%.*?%})', re.S)
 JINJA_REF = re.compile(r"(?:states|is_state|is_state_attr|state_attr|has_value|expand)\s*\(\s*['\"]([a-z_][a-z0-9_]*\.[a-z0-9_]+)['\"]",re.I)
+# Variables Jinja affectées à un identifiant d'entité littéral.
+# On ne crée un lien que si la variable est ensuite utilisée comme référence
+# d'état (states[var], is_state(var, ...), state_attr(var, ...)).
+JINJA_SET = re.compile(r"{%\\s*set\\s+([a-z_][a-z0-9_]*)\\s*=\\s*['\\\"]([a-z_][a-z0-9_]*\\.[a-z0-9_]+)['\\\"]\\s*%}", re.I)
+JINJA_VARIABLE_USE = re.compile(r"(?:states\\s*\\[\\s*{v}\\s*\\]|(?:is_state|is_state_attr|state_attr|has_value|expand|states)\\s*\\(\\s*{v}\\s*[,\\)])", re.I)
 JINJA_DOT = re.compile(r'\bstates\.([a-z_][a-z0-9_]*)\.([a-z0-9_]+)',re.I)
 DIRECT = {'entity_id','entity','source','above','below','at'}
 SKIP = {'fichier_d_origine','alias','description','name','icon','action','service','trigger','condition','device_id','area_id','label_id','domain','platform','unique_id','id'}
@@ -15,9 +20,18 @@ def references(value,key):
     if not isinstance(value,str):return []
     if key in DIRECT and ENTITY.fullmatch(value.strip()):return [(value.strip(),'direct')]
     if '{{' not in value and '{%' not in value:return []
-    # Seuls les blocs Jinja exécutables sont inspectés ; texte et commentaires exclus.
+    # Ne garder que les blocs exécutables, sans les commentaires Jinja.
     value=' '.join(JINJA_BLOCK.findall(JINJA_COMMENT.sub('',value)))
     refs=[(m.group(1),'jinja') for m in JINJA_REF.finditer(value)]
+    # Exemple : {% set s = 'binary_sensor.ballon_250_en_marche' %}
+    #           {{ states[s].last_changed }} ou {% if is_state(s, 'on') %}.
+    # Une simple chaîne affectée à une variable non utilisée ne constitue
+    # pas une dépendance : vérifier une utilisation fonctionnelle.
+    for match in JINJA_SET.finditer(value):
+        variable, entity_id = match.groups()
+        use = JINJA_VARIABLE_USE.pattern.format(v=re.escape(variable))
+        if re.search(use, value[match.end():], re.I):
+            refs.append((entity_id, 'jinja'))
     refs += [(m.group(1)+'.'+m.group(2),'jinja') for m in JINJA_DOT.finditer(value)]
     return list(dict.fromkeys(refs))
 
