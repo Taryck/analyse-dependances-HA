@@ -154,20 +154,20 @@ class DependencyGraphPanel extends HTMLElement {
     <!-- Le logo est servi par HA depuis le répertoire local de l'intégration. -->
     <header class="topbar"><div class="heading"><img src="/dependency_graph_brand/icon.png" alt="Logo Dependency Graph"><h1>Graphe des dépendances</h1></div>
       <div class="analysis-controls"><button id="analyze">♻ Analyser</button><small id="analyzed-at">Dernière analyse : inconnue</small></div></header>
-    <div class="field"><label for="query">Rechercher un objet</label><input id="query" placeholder="Identifiant ou nom (*ballon*)"></div>
+    <div class="field"><label for="query">Rechercher un objet</label><input id="query" placeholder="Mots-clés (ex. chauffage temps)"></div>
     <!-- Trois groupes distincts : chaque groupe garde ses deux filtres côte à côte. -->
     <div class="filter-groups">
       <fieldset class="filter-group"><legend>Objets</legend><div class="filter-pair">
-        <div class="field"><label for="family">Famille</label><select id="family"><option value="">Toutes les familles</option><option value="entites">Entités</option><option value="assistants">Assistants</option><option value="automatisations">Automatisations et scripts</option><option value="organisation">Organisation HA</option></select></div>
-        <div class="field"><label for="domain">Domaine</label><select id="domain"><option value="">Tous les domaines</option></select></div>
+        <div class="field"><label for="family">Famille</label><select id="family" multiple size="4" title="Ctrl/Cmd ou Maj pour sélectionner plusieurs valeurs"><option value="">Toutes les familles</option><option value="entites">Entités</option><option value="assistants">Assistants</option><option value="automatisations">Automatisations et scripts</option><option value="organisation">Organisation HA</option></select></div>
+        <div class="field"><label for="domain">Domaine</label><select id="domain" multiple size="4" title="Ctrl/Cmd ou Maj pour sélectionner plusieurs valeurs"><option value="">Tous les domaines</option></select></div>
       </div></fieldset>
       <fieldset class="filter-group"><legend>Catégorie</legend><div class="filter-pair">
-        <div class="field"><label for="scope">Type</label><select id="scope"><option value="">Tous les types</option><option value="helpers">Assistants</option><option value="automation">Automatisations</option></select></div>
-        <div class="field"><label for="category">Nom</label><select id="category"><option value="">Toutes les catégories</option></select></div>
+        <div class="field"><label for="scope">Type</label><select id="scope" multiple size="4" title="Ctrl/Cmd ou Maj pour sélectionner plusieurs valeurs"><option value="">Tous les types</option><option value="helpers">Assistants</option><option value="automation">Automatisations</option></select></div>
+        <div class="field"><label for="category">Nom</label><select id="category" multiple size="4" title="Ctrl/Cmd ou Maj pour sélectionner plusieurs valeurs"><option value="">Toutes les catégories</option></select></div>
       </div></fieldset>
       <fieldset class="filter-group"><legend>Localisation</legend><div class="filter-pair">
-        <div class="field"><label for="floor">Étage</label><select id="floor"><option value="">Tous les étages</option></select></div>
-        <div class="field"><label for="area">Pièce</label><select id="area"><option value="">Toutes les pièces</option></select></div>
+        <div class="field"><label for="floor">Étage</label><select id="floor" multiple size="4" title="Ctrl/Cmd ou Maj pour sélectionner plusieurs valeurs"><option value="">Tous les étages</option></select></div>
+        <div class="field"><label for="area">Pièce</label><select id="area" multiple size="4" title="Ctrl/Cmd ou Maj pour sélectionner plusieurs valeurs"><option value="">Toutes les pièces</option></select></div>
       </div></fieldset>
     </div>
     <div class="checkboxes"><label><input type="checkbox" id="missing-only"> Dépendance manquante</label><label><input type="checkbox" id="no-dependencies"> Objets sans dépendance</label></div>
@@ -204,7 +204,9 @@ class DependencyGraphPanel extends HTMLElement {
    * Les étapes sont volontairement séparées de la présentation pour faciliter
    * la maintenance et le diagnostic depuis la console du navigateur.
    */
-  fill(id,values){const el=this.$(id),selected=el.value;while(el.options.length>1)el.remove(1);for(const value of values){const opt=document.createElement('option');opt.value=value;opt.textContent=value;el.add(opt)}el.value=values.includes(selected)?selected:''}
+  // La sélection vide signifie « Tous ». Plusieurs valeurs sont combinées en OU.
+  selected(id){return [...this.$(id).selectedOptions].map(o=>o.value).filter(Boolean)}
+  fill(id,values){const el=this.$(id),old=this.selected(id);while(el.options.length>1)el.remove(1);for(const value of values){const opt=document.createElement('option');opt.value=value;opt.textContent=value;opt.selected=old.includes(value);el.add(opt)}if(!this.selected(id).length)el.options[0].selected=true}
   // Chaque méthode ci-dessous est indépendante de l'analyse lourde.
   // Les sélecteurs n'envoient que des critères de lecture au serveur.
   // Les objets HA et leurs identifiants ne sont jamais modifiés.
@@ -222,14 +224,14 @@ class DependencyGraphPanel extends HTMLElement {
    * Les étapes sont volontairement séparées de la présentation pour faciliter
    * la maintenance et le diagnostic depuis la console du navigateur.
    */
-  domains(){const f=this.$('family').value;const all=this.values.domain||[];const org=['area','floor','category','label'];const helpers=['input_boolean','input_datetime','input_number','input_select','input_text','input_button','counter','timer','schedule'];const autom=['automation','script','scene'];this.fill('domain',all.filter(d=>!f||(f==='organisation'?org.includes(d):f==='assistants'?helpers.includes(d):f==='automatisations'?autom.includes(d):!org.includes(d)&&!helpers.includes(d)&&!autom.includes(d))))}
+  domains(){const families=this.selected('family'),all=this.values.domain||[];const org=['area','floor','category','label'];const helpers=['input_boolean','input_datetime','input_number','input_select','input_text','input_button','counter','timer','schedule'];const autom=['automation','script','scene'];const allowed=d=>!families.length||families.some(f=>f==='organisation'?org.includes(d):f==='assistants'?helpers.includes(d):f==='automatisations'?autom.includes(d):!org.includes(d)&&!helpers.includes(d)&&!autom.includes(d));this.fill('domain',all.filter(allowed))}
   // Deux listes HA distinctes : catégories d’assistants et d’automatisations.
   /**
    * categories : Les catégories HA ont deux portées indépendantes. La liste de noms dépend du type choisi et élimine les doublons.
    * Les étapes sont volontairement séparées de la présentation pour faciliter
    * la maintenance et le diagnostic depuis la console du navigateur.
    */
-  categories(){const scope=this.$('scope').value;const values=scope?(this.values['category_'+scope]||[]):[...(this.values.category_helpers||[]),...(this.values.category_automation||[])];this.fill('category',[...new Set(values)].sort())}
+  categories(){const scopes=this.selected('scope');const values=(scopes.length?scopes:['helpers','automation']).flatMap(s=>this.values['category_'+s]||[]);this.fill('category',[...new Set(values)].sort())}
   /**
    * Réduit les pièces proposées à celles de l'étage sélectionné.
    * La correspondance étage/pièce vient de la base et non du nom de la pièce :
@@ -237,13 +239,13 @@ class DependencyGraphPanel extends HTMLElement {
    * Lorsqu'on change d'étage, une ancienne pièce incompatible est désélectionnée.
    */
   areas(){
-    const floor=this.$('floor').value;
+    const floors=this.selected('floor');
     /* floor_areas est renvoyé par le serveur : chaque ligne associe un étage et une pièce. */
     /* On ne déduit jamais un étage du nom d’une pièce. */
     const pairs=this.values.floor_areas||[];
     /* Sans étage choisi, toutes les pièces sont proposées. */
     /* Avec un étage, seules ses pièces restent disponibles. */
-    const names=floor?pairs.filter(p=>p.floor===floor).map(p=>p.area):this.values.area_name||[];
+    const names=floors.length?pairs.filter(p=>floors.includes(p.floor)).map(p=>p.area):this.values.area_name||[];
     /* fill conserve la sélection si elle existe encore, sinon la remet à « Toutes ». */
     this.fill('area',[...new Set(names)].sort((a,b)=>a.localeCompare(b,'fr')));
   }
@@ -289,12 +291,12 @@ class DependencyGraphPanel extends HTMLElement {
     // Ainsi, l'état affiché correspond toujours aux critères envoyés à SQLite.
     const args = {
       query: this.$('query').value,
-      family: this.$('family').value,
-      domain: this.$('domain').value,
-      scope: this.$('scope').value,
-      category: this.$('category').value,
-      floor: this.$('floor').value,
-      area: this.$('area').value,
+      family: this.selected('family'),
+      domain: this.selected('domain'),
+      scope: this.selected('scope'),
+      category: this.selected('category'),
+      floor: this.selected('floor'),
+      area: this.selected('area'),
       offset: this.offset,
       limit: this.limit,
       sort: this.sort,
