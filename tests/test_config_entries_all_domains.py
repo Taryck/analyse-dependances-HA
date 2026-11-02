@@ -21,6 +21,64 @@ from custom_components.dependency_graph.service import GraphService
 class ConfigEntriesRegression(unittest.TestCase):
     """Reproduit une configuration Filter avec moyenne mobile de 24 heures."""
 
+    def test_statistics_and_utility_meter(self):
+        """Les deux plateformes doivent créer un lien vers leur capteur source.
+
+        statistics utilise options.entity_id ; utility_meter utilise
+        options.source. Ces deux clés doivent être traitées explicitement.
+        """
+        from custom_components.dependency_graph.analyzer.dependencies.all_objects import references
+
+        self.assertEqual(
+            references('sensor.ballon_duree_250', 'entity_id'),
+            [('sensor.ballon_duree_250', 'direct')],
+        )
+        self.assertEqual(
+            references('sensor.eau_chaude_water_consumed', 'source'),
+            [('sensor.eau_chaude_water_consumed', 'direct')],
+        )
+        # Une valeur libre telle que le nom du compteur n'est pas une référence.
+        self.assertEqual(references('Eau chaude', 'name'), [])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            service = GraphService(tmp)
+            service.storage.mkdir()
+            db = Database(service.db_path)
+            for entity, entry_id in (
+                ('sensor.ballon_duree_max_250', 'STAT_1'),
+                ('sensor.eau_chaude', 'METER_1'),
+                ('sensor.ballon_duree_250', None),
+                ('sensor.eau_chaude_water_consumed', None),
+            ):
+                db.add({
+                    'object_id': entity, 'domain': 'sensor', 'object_type': 'entity',
+                    'source_type': 'json', 'source_file': 'core.entity_registry',
+                    'entity_id': entity, 'attributes': {'config_entry_id': entry_id},
+                })
+            ConfigEntriesParser(db).parse({'data': {'entries': [
+                {'entry_id': 'STAT_1', 'domain': 'statistics', 'data': {},
+                 'options': {'entity_id': 'sensor.ballon_duree_250',
+                             'state_characteristic': 'value_max',
+                             'max_age': {'hours': 36}}},
+                {'entry_id': 'METER_1', 'domain': 'utility_meter', 'data': {},
+                 'options': {'source': 'sensor.eau_chaude_water_consumed',
+                             'cycle': 'daily'}},
+            ]}}, 'core.config_entries')
+            global_yaml = service.storage / 'test_global.yaml'
+            global_yaml.write_text('{}', encoding='utf8')
+            scan_all(Path(tmp), db, global_yaml)
+            db.close()
+            for target, expected in (
+                ('sensor.ballon_duree_max_250', 'sensor.ballon_duree_250'),
+                ('sensor.eau_chaude', 'sensor.eau_chaude_water_consumed'),
+            ):
+                detail = service.detail(target)
+                self.assertIn(expected, [link['id'] for link in detail['depend_on']])
+                self.assertEqual(
+                    service.list_objects(query=target)['items'][0]['depend_on_count'],
+                    1,
+                )
+
     def test_filter_and_shared_entries(self):
         """Vérifie affichage, dépendances et associations multi-entités."""
         with tempfile.TemporaryDirectory() as tmp:
