@@ -1,7 +1,7 @@
 {
   "domain": "dependency_graph",
   "name": "Dependency Graph",
-  "version": "1.5.1b3",
+  "version": "1.6.0b1",
   "documentation": "https://github.com/Taryck/analyse-dependances-HA",
   "issue_tracker": "https://github.com/Taryck/analyse-dependances-HA/issues",
   "codeowners": [
