@@ -63,30 +63,71 @@ class GraphService:
         db = Database(self.db_path)
         try:
             conditions = ['1=1']; params = []
+            # Les mots séparés par des espaces sont recherchés dans leur ordre,
+            # comme si l'utilisateur avait saisi « chauffage*temps ».
+            # Les caractères % et _ sont échappés pour éviter un LIKE inattendu.
             if query:
-                pattern = '%' + query.lower().replace('*', '%').replace('?', '_') + '%'
-                conditions.append('(lower(o.object_id) LIKE ? OR lower(o.name) LIKE ?)')
+                terms = [t for t in re.split(r'\\s+', query.strip()) if t]
+                pattern = '%' + '%'.join(
+                    t.lower().replace('\\\\', '\\\\\\\\').replace('%', '\\\\%').replace('_', '\\\\_').replace('*', '%').replace('?', '_')
+                    for t in terms
+                ) + '%'
+                conditions.append("(lower(o.object_id) LIKE ? ESCAPE '\\\\' OR lower(COALESCE(o.name,'')) LIKE ? ESCAPE '\\\\')")
                 params.extend([pattern, pattern])
-            for col, value in [('domain', domain), ('area_name', area), ('floor_name', floor)]:
-                if value:
-                    conditions.append(f'o.{col} = ?'); params.append(value)
-            if scope and category:
-                conditions.append("o.category_id IN (SELECT substr(object_id, length(?) + 11) FROM objects WHERE object_id LIKE ? AND name = ?)")
-                params.extend([scope, f'category.{scope}.%', category])
-            elif category:
-                conditions.append('o.category_name = ?'); params.append(category)
-            if scope:
-                conditions.append("(o.object_id LIKE ? OR json_extract(o.attributes, '$.categories.' || ?) IS NOT NULL)")
-                params.extend([f'category.{scope}.%', scope])
-            if family:
-                if family == 'organisation':
-                    conditions.append("o.domain IN ('area','floor','category','label')")
-                elif family == 'assistants':
-                    conditions.append("o.domain IN ('input_boolean','input_datetime','input_number','input_select','input_text','input_button','counter','timer','schedule')")
-                elif family == 'automatisations':
-                    conditions.append("o.domain IN ('automation','script','scene')")
-                elif family == 'entites':
-                    conditions.append("o.domain NOT IN ('area','floor','category','label','automation','script','scene','input_boolean','input_datetime','input_number','input_select','input_text','input_button','counter','timer','schedule')")
+
+            # Chaque filtre accepte zéro, une ou plusieurs valeurs.
+            # OU au sein d'un filtre, ET entre les familles de filtres.
+            def selected(value):
+                if isinstance(value, str):
+                    return [value] if value else []
+                return [v for v in value if isinstance(v, str) and v]
+
+            def in_values(column, values):
+                if values:
+                    conditions.append(f"o.{column} IN ({','.join('?' for _ in values)})")
+                    params.extend(values)
+
+            in_values('domain', selected(domain))
+            in_values('area_name', selected(area))
+            in_values('floor_name', selected(floor))
+
+            categories, scopes = selected(category), selected(scope)
+            if categories:
+                # Ne pas confondre deux catégories de même nom appartenant
+                # à des portées différentes (helpers / automation).
+                if scopes:
+                    clauses = []
+                    for current_scope in scopes:
+                        clauses.append(
+                            "(o.category_id IN (SELECT substr(object_id, length(?) + 11) "
+                            "FROM objects WHERE object_id LIKE ? AND name IN (" +
+                            ','.join('?' for _ in categories) + ")))"
+                        )
+                        params.extend([current_scope, f'category.{current_scope}.%', *categories])
+                    conditions.append('(' + ' OR '.join(clauses) + ')')
+                else:
+                    in_values('category_name', categories)
+            if scopes:
+                conditions.append('(' + ' OR '.join(
+                    "(o.object_id LIKE ? OR json_extract(o.attributes, '$.categories.' || ?) IS NOT NULL)"
+                    for _ in scopes
+                ) + ')')
+                for current_scope in scopes:
+                    params.extend([f'category.{current_scope}.%', current_scope])
+
+            families = selected(family)
+            if families:
+                org = "o.domain IN ('area','floor','category','label')"
+                helpers = "o.domain IN ('input_boolean','input_datetime','input_number','input_select','input_text','input_button','counter','timer','schedule')"
+                autom = "o.domain IN ('automation','script','scene')"
+                mapping = {
+                    'organisation': org, 'assistants': helpers,
+                    'automatisations': autom,
+                    'entites': f"NOT ({org} OR {helpers} OR {autom})",
+                }
+                chosen = [mapping[f] for f in families if f in mapping]
+                if chosen:
+                    conditions.append('(' + ' OR '.join(chosen) + ')')
             # Les cases à cocher dépendent des compteurs calculés dans counted.
             # On les applique dans la requête externe, avant LIMIT/OFFSET.
             # Les filtres de famille/domaine sont appliqués en amont dans WHERE.
