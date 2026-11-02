@@ -10,7 +10,7 @@ JINJA_REF = re.compile(r"(?:states|is_state|is_state_attr|state_attr|has_value|e
 # Variables Jinja affectées à un identifiant d'entité littéral.
 # On ne crée un lien que si la variable est ensuite utilisée comme référence
 # d'état (states[var], is_state(var, ...), state_attr(var, ...)).
-JINJA_SET = re.compile(r"{%\s*set\s+([a-z_][a-z0-9_]*)\s*=\s*['\\"]([a-z_][a-z0-9_]*\.[a-z0-9_]+)['\\"]\s*%}", re.I)
+JINJA_SET = re.compile(r"""{%\s*set\s+([a-z_][a-z0-9_]*)\s*=\s*['"]([a-z_][a-z0-9_]*\.[a-z0-9_]+)['"]\s*%}""", re.I)
 JINJA_VARIABLE_USE = re.compile(r"(?:states\s*\[\s*{v}\s*\]|(?:is_state|is_state_attr|state_attr|has_value|expand|states)\s*\(\s*{v}\s*[,\)])", re.I)
 JINJA_DOT = re.compile(r'\bstates\.([a-z_][a-z0-9_]*)\.([a-z0-9_]+)',re.I)
 DIRECT = {'entity_id','entity','source','above','below','at'}
