@@ -67,12 +67,18 @@ class GraphService:
             # comme si l'utilisateur avait saisi « chauffage*temps ».
             # Les caractères % et _ sont échappés pour éviter un LIKE inattendu.
             if query:
-                terms = [t for t in re.split(r'\\s+', query.strip()) if t]
-                pattern = '%' + '%'.join(
-                    t.lower().replace('\\\\', '\\\\\\\\').replace('%', '\\\\%').replace('_', '\\\\_').replace('*', '%').replace('?', '_')
-                    for t in terms
-                ) + '%'
-                conditions.append("(lower(o.object_id) LIKE ? ESCAPE '\\\\' OR lower(COALESCE(o.name,'')) LIKE ? ESCAPE '\\\\')")
+                # Les mots sont séparés par un espace et deviennent des jokers LIKE.
+                # Les caractères SQL spéciaux sont échappés ; * reste un joker.
+                terms = [t for t in re.split(r'\s+', query.strip()) if t]
+                def escape_term(term):
+                    return (term.lower().replace('\\', '\\\\')
+                            .replace('%', '\\%').replace('_', '\\_')
+                            .replace('*', '%').replace('?', '_'))
+                pattern = '%' + '%'.join(escape_term(t) for t in terms) + '%'
+                conditions.append(
+                    "(lower(o.object_id) LIKE ? ESCAPE '\\' "
+                    "OR lower(COALESCE(o.name,'')) LIKE ? ESCAPE '\\')"
+                )
                 params.extend([pattern, pattern])
 
             # Chaque filtre accepte zéro, une ou plusieurs valeurs.
