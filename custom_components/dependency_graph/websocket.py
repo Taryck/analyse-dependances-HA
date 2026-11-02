@@ -45,11 +45,27 @@ async def _execute(hass, connection, msg, method, *args, **kwargs):
     else:
         connection.send_result(msg['id'],result)
 
-@websocket_api.websocket_command({vol.Required('type'):'dependency_graph/list',vol.Optional('query',default=''):str,vol.Optional('domain',default=[]):vol.Any(str,[str]),vol.Optional('area',default=[]):vol.Any(str,[str]),vol.Optional('floor',default=[]):vol.Any(str,[str]),vol.Optional('category',default=[]):vol.Any(str,[str]),vol.Optional('scope',default=[]):vol.Any(str,[str]),vol.Optional('family',default=[]):vol.Any(str,[str]),vol.Optional('sort',default='object_id'):str,vol.Optional('descending',default=False):bool,vol.Optional('limit',default=200):vol.All(int,vol.Range(min=1,max=500)),vol.Optional('offset',default=0):vol.All(int,vol.Range(min=0)),vol.Optional('missing_only',default=False):bool,vol.Optional('no_dependencies',default=False):bool})
+def _measurement_metadata(hass):
+    """Lit les unités et classes des états HA sans accès disque.
+
+    Ces attributs ne sont pas présents dans core.entity_registry ; ils sont
+    fournis par la machine d'états courante de Home Assistant.
+    """
+    return {
+        state.entity_id: {
+            'unit': state.attributes.get('unit_of_measurement'),
+            'measurement': state.attributes.get('device_class'),
+        }
+        for state in hass.states.async_all()
+        if state.attributes.get('unit_of_measurement') or state.attributes.get('device_class')
+    }
+
+
+@websocket_api.websocket_command({vol.Required('type'):'dependency_graph/list',vol.Optional('query',default=''):str,vol.Optional('domain',default=[]):vol.Any(str,[str]),vol.Optional('area',default=[]):vol.Any(str,[str]),vol.Optional('floor',default=[]):vol.Any(str,[str]),vol.Optional('category',default=[]):vol.Any(str,[str]),vol.Optional('scope',default=[]):vol.Any(str,[str]),vol.Optional('family',default=[]):vol.Any(str,[str]),vol.Optional('sort',default='object_id'):str,vol.Optional('descending',default=False):bool,vol.Optional('limit',default=200):vol.All(int,vol.Range(min=1,max=500)),vol.Optional('offset',default=0):vol.All(int,vol.Range(min=0)),vol.Optional('missing_only',default=False):bool,vol.Optional('no_dependencies',default=False):bool,vol.Optional('measurement',default=[]):vol.Any(str,[str]),vol.Optional('unit',default=[]):vol.Any(str,[str])})
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_list(hass,connection,msg):
-    await _execute(hass,connection,msg,'list_objects',**{k:msg[k] for k in ('query','domain','area','floor','category','scope','family','sort','descending','limit','offset','missing_only','no_dependencies')})
+    await _execute(hass,connection,msg,'list_objects',**{k:msg[k] for k in ('query','domain','area','floor','category','scope','family','sort','descending','limit','offset','missing_only','no_dependencies','measurement','unit')},measurements=_measurement_metadata(hass))
 
 @websocket_api.websocket_command({vol.Required('type'):'dependency_graph/detail',vol.Required('identifier'):str})
 @websocket_api.require_admin
@@ -61,7 +77,7 @@ async def ws_detail(hass,connection,msg):
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_values(hass,connection,msg):
-    await _execute(hass,connection,msg,'values')
+    await _execute(hass,connection,msg,'values',measurements=_measurement_metadata(hass))
 
 @websocket_api.websocket_command({vol.Required('type'):'dependency_graph/analyze'})
 @websocket_api.require_admin
