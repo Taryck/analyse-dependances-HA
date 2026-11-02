@@ -56,7 +56,7 @@ class GraphService:
         finally:
             db.close()
 
-    def list_objects(self, query='', domain='', area='', floor='', category='', scope='', family='', limit=500, offset=0, sort='object_id', descending=False, missing_only=False, no_dependencies=False):
+    def list_objects(self, query='', domain='', area='', floor='', category='', scope='', family='', limit=500, offset=0, sort='object_id', descending=False, missing_only=False, no_dependencies=False, measurement=None, unit=None, measurements=None):
         """Inventaire paginé avec compteurs de voisins distincts et tri serveur."""
         if not self.db_path.is_file():
             return {'items': [], 'total': 0, 'analyzed': False, 'analyzed_at': None}
@@ -134,6 +134,23 @@ class GraphService:
                 chosen = [mapping[f] for f in families if f in mapping]
                 if chosen:
                     conditions.append('(' + ' OR '.join(chosen) + ')')
+            # Les classes et unités viennent des états HA actifs, pas du
+            # registre des entités, qui ne contient généralement pas ces attributs.
+            # Un objet sans état actif ne correspond pas à un filtre de mesure.
+            classes, units = selected(measurement), selected(unit)
+            if classes or units:
+                matching = [
+                    entity_id for entity_id, meta in (measurements or {}).items()
+                    if (not classes or meta.get('measurement') in classes)
+                    and (not units or meta.get('unit') in units)
+                ]
+                if matching:
+                    conditions.append(
+                        'o.entity_id IN (' + ','.join('?' for _ in matching) + ')'
+                    )
+                    params.extend(matching)
+                else:
+                    conditions.append('0=1')
             # Les cases à cocher dépendent des compteurs calculés dans counted.
             # On les applique dans la requête externe, avant LIMIT/OFFSET.
             # Les filtres de famille/domaine sont appliqués en amont dans WHERE.
@@ -273,7 +290,7 @@ class GraphService:
             return self._redact(data)
         finally: db.close()
 
-    def values(self):
+    def values(self, measurements=None):
         """Valeurs de filtres et catégories par portée."""
         if not self.db_path.is_file():return {}
         db=Database(self.db_path)
@@ -293,5 +310,21 @@ class GraphService:
             ]
             for scope in ('helpers','automation'):
                 result['category_'+scope]=[r[0] for r in db.db.execute('SELECT name FROM objects WHERE object_id LIKE ? ORDER BY name',(f'category.{scope}.%',))]
+            # Les valeurs proviennent des états actuels, sans inventer de
+            # classe de mesure à partir du nom ou de l'unité.
+            metadata = list((measurements or {}).values())
+            result['measurement'] = sorted({
+                m['measurement'] for m in metadata if m.get('measurement')
+            })
+            result['unit'] = sorted({
+                m['unit'] for m in metadata if m.get('unit')
+            })
+            result['measurement_units'] = [
+                {'measurement': measure, 'unit': unit}
+                for measure, unit in sorted({
+                    (m['measurement'], m['unit']) for m in metadata
+                    if m.get('measurement') and m.get('unit')
+                })
+            ]
             return result
         finally:db.close()
