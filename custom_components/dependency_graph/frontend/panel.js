@@ -134,7 +134,7 @@ class DependencyGraphPanel extends HTMLElement {
       @media(max-width:1000px){.filters{grid-template-columns:repeat(2,minmax(130px,1fr))}.search{grid-column:span 2}.layout{grid-template-columns:1fr}.table-scroll{max-height:600px}}
       @media(max-width:600px){.filters{grid-template-columns:repeat(2,minmax(100px,1fr))}.search{grid-column:span 2}.wrap{width:calc(100% - 20px)}}
       /* Les trois groupes restent chacun sur deux colonnes, même sur mobile. */
-      .filter-groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0}
+      .filter-groups{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:14px 0}
       .filter-group{border:1px solid var(--divider-color);border-radius:12px;padding:12px;min-width:0}
       .filter-group legend{font-weight:700;padding:0 8px;color:var(--primary-text-color)}
       .filter-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -169,6 +169,10 @@ class DependencyGraphPanel extends HTMLElement {
         <div class="field"><label for="floor">Étage</label><select id="floor" multiple size="4" title="Ctrl/Cmd ou Maj pour sélectionner plusieurs valeurs"><option value="">Tous les étages</option></select></div>
         <div class="field"><label for="area">Pièce</label><select id="area" multiple size="4" title="Ctrl/Cmd ou Maj pour sélectionner plusieurs valeurs"><option value="">Toutes les pièces</option></select></div>
       </div></fieldset>
+      <fieldset class="filter-group"><legend>Mesure</legend><div class="filter-pair">
+        <div class="field"><label for="measurement">Classe (ex. énergie)</label><select id="measurement" multiple size="4" title="Sélection multiple avec Ctrl/Cmd ou Maj"><option value="">Toutes les mesures</option></select></div>
+        <div class="field"><label for="unit">Unité (kWh, A, V, W…)</label><select id="unit" multiple size="4" title="Sélection multiple avec Ctrl/Cmd ou Maj"><option value="">Toutes les unités</option></select></div>
+      </div></fieldset>
     </div>
     <div class="checkboxes"><label><input type="checkbox" id="missing-only"> Dépendance manquante</label><label><input type="checkbox" id="no-dependencies"> Objets sans dépendance</label></div>
     <p id="status" class="muted" role="status"></p>
@@ -179,7 +183,7 @@ class DependencyGraphPanel extends HTMLElement {
     <section class="panel" id="details"><h2>Détails</h2><p>Sélectionnez un objet.</p></section></div></div>`;
     this.$=id=>this.shadowRoot.getElementById(id);this.offset=0;this.limit=100;this.sort='object_id';this.descending=false;
     this.$('query').addEventListener('input',()=>{clearTimeout(this._debounce);this._debounce=setTimeout(()=>{this.offset=0;this.list()},250)});
-    for(const id of ['family','domain','scope','category','floor','area'])this.$(id).addEventListener('change',()=>{this.offset=0;if(id==='family')this.domains();if(id==='scope')this.categories();if(id==='floor')this.areas();this.list()});
+    for(const id of ['family','domain','scope','category','floor','area','measurement','unit'])this.$(id).addEventListener('change',()=>{this.offset=0;if(id==='family')this.domains();if(id==='scope')this.categories();if(id==='floor')this.areas();if(id==='measurement'||id==='unit')this.measurementUnits(id);this.list()});
     this.shadowRoot.querySelectorAll('th[data-sort]').forEach(th=>th.onclick=()=>{const next=th.dataset.sort;this.descending=this.sort===next?!this.descending:false;this.sort=next;this.offset=0;this.updateSort();this.list()});
     this.$('missing-only').onchange=()=>{this.offset=0;this.list()};this.$('no-dependencies').onchange=()=>{this.offset=0;this.list()};
     this.$('prev').onclick=()=>{this.offset=Math.max(0,this.offset-this.limit);this.list()};this.$('next').onclick=()=>{this.offset+=this.limit;this.list()};// Le bouton est branché une seule fois, au montage du panneau.
@@ -251,6 +255,24 @@ class DependencyGraphPanel extends HTMLElement {
   }
 
   /**
+   * Croise les classes de mesure et les unités réellement observées dans HA.
+   * Une classe sélectionnée restreint les unités ; une unité sélectionnée
+   * restreint les classes. Les choix incompatibles sont désélectionnés.
+   */
+  measurementUnits(changed){
+    const pairs=this.values.measurement_units||[];
+    const classes=this.selected('measurement'),units=this.selected('unit');
+    if(changed==='measurement'){
+      this.fill('unit',[...new Set(pairs.filter(p=>!classes.length||classes.includes(p.measurement)).map(p=>p.unit))].sort());
+    }else if(changed==='unit'){
+      this.fill('measurement',[...new Set(pairs.filter(p=>!units.length||units.includes(p.unit)).map(p=>p.measurement))].sort());
+    }else{
+      this.fill('measurement',this.values.measurement||[]);
+      this.fill('unit',this.values.unit||[]);
+    }
+  }
+
+  /**
    * Affiche la date réelle du dernier scan mémorisée par SQLite.
    * Un scan datant de plus de 24 heures colore le bouton Analyser.
    * Les dates sont transmises en ISO UTC, puis affichées dans le fuseau du navigateur.
@@ -270,7 +292,7 @@ class DependencyGraphPanel extends HTMLElement {
    * Les étapes sont volontairement séparées de la présentation pour faciliter
    * la maintenance et le diagnostic depuis la console du navigateur.
    */
-  async start(){this._started=true;try{this.values=await this.api('values');this.domains();this.categories();this.fill('floor',this.values.floor_name||[]);this.areas();this.updateSort();await this.list()}catch(e){this.status(e.message)}}
+  async start(){this._started=true;try{this.values=await this.api('values');this.domains();this.categories();this.fill('floor',this.values.floor_name||[]);this.areas();this.measurementUnits();this.updateSort();await this.list()}catch(e){this.status(e.message)}}
   // ▲ / ▼ reflète le tri choisi en cliquant sur un titre de colonne.
   /**
    * updateSort : Conserve une seule colonne de tri active et ajoute une flèche à son libellé. Le tri réel se fait en SQLite.
@@ -297,6 +319,8 @@ class DependencyGraphPanel extends HTMLElement {
       category: this.selected('category'),
       floor: this.selected('floor'),
       area: this.selected('area'),
+      measurement: this.selected('measurement'),
+      unit: this.selected('unit'),
       offset: this.offset,
       limit: this.limit,
       sort: this.sort,
