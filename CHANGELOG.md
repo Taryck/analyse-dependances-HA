@@ -1,3 +1,12 @@
+# 1.6.0b1
+
+- Analyse Jinja : résolution des variables définies par `{% set s = 'entity_id' %}` puis utilisées dans `is_state(s, ...)` ou `states[s]`. Corrige la dépendance de `sensor.ballon_duree_250` vers `binary_sensor.ballon_250_en_marche`.
+- Recherche multi-mots ordonnée : `chauffage temps` correspond à `chauffage*temps`, dans l'identifiant ou le nom.
+- Filtres multi-sélection : famille, domaine, type et nom de catégorie, étage et pièce. OU dans un même filtre, ET entre filtres.
+- Nouveau filtre Mesure : classe `device_class` et unité `unit_of_measurement` liées, issues des états courants de Home Assistant.
+- Tests de régression pour les variables Jinja, les sélections multiples, la recherche et les mesures.
+- Le logo unique et toutes les versions précédentes du journal sont conservés.
+
 # 1.5.1b3
 
 - Reconnaissance de `options.source` comme référence directe, notamment pour les assistants `utility_meter`.
