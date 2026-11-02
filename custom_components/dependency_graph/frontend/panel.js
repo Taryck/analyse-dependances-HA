@@ -541,6 +541,6 @@ class DependencyGraphPanel extends HTMLElement {
    * Les étapes sont volontairement séparées de la présentation pour faciliter
    * la maintenance et le diagnostic depuis la console du navigateur.
    */
-  async analyze(){const b=this.$('analyze');b.disabled=true;this.status('Analyse en cours…');try{const result=await this.api('analyze');this.values=await this.api('values');this.domains();this.categories();this.fill('floor',this.values.floor_name||[]);this.areas();this.offset=0;await this.list();this.status(`Analyse terminée : ${result.objects} objets, ${result.dependencies} références, ${result.errors} erreurs`)}catch(e){this.status('Échec : '+e.message)}finally{b.disabled=false}}
+  async analyze(){const b=this.$('analyze');b.disabled=true;this.status('Analyse en cours…');try{const result=await this.api('analyze');this.values=await this.api('values');this.domains();this.categories();this.fill('floor',this.values.floor_name||[]);this.areas();this.measurementUnits();this.offset=0;await this.list();this.status(`Analyse terminée : ${result.objects} objets, ${result.dependencies} références, ${result.errors} erreurs`)}catch(e){this.status('Échec : '+e.message)}finally{b.disabled=false}}
 }
 customElements.define('dependency-graph-panel',DependencyGraphPanel);
