@@ -145,10 +145,10 @@ class GraphService:
                     and (not units or meta.get('unit') in units)
                 ]
                 if matching:
-                    conditions.append(
-                        'o.entity_id IN (' + ','.join('?' for _ in matching) + ')'
-                    )
-                    params.extend(matching)
+                    # json_each évite la limite de paramètres SQLite si HA
+                    # possède plusieurs milliers d'entités mesurées.
+                    conditions.append('o.entity_id IN (SELECT value FROM json_each(?))')
+                    params.append(json.dumps(matching))
                 else:
                     conditions.append('0=1')
             # Les cases à cocher dépendent des compteurs calculés dans counted.
