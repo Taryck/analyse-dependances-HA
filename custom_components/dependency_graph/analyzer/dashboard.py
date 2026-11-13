@@ -155,6 +155,13 @@ def scan_dashboards(root, db, global_path):
         if isinstance(lovelace, dict) and "contenu" in lovelace:
             lovelace = lovelace["contenu"]
         dashboards = lovelace.get("dashboards", {}) if isinstance(lovelace, dict) else {}
+        if isinstance(lovelace, dict) and lovelace.get("mode") == "yaml":
+            try:
+                default_config = _read_dashboard_yaml(root / "ui-lovelace.yaml", root)
+                if isinstance(default_config, dict):
+                    configs["lovelace"] = (default_config, "ui-lovelace.yaml", "yaml")
+            except (ValueError, OSError, yaml.YAMLError) as exc:
+                db.error("ui-lovelace.yaml", str(exc))
         for slug, spec in dashboards.items():
             if not isinstance(spec, dict) or spec.get("mode") != "yaml" or not spec.get("filename"):
                 continue
@@ -169,7 +176,17 @@ def scan_dashboards(root, db, global_path):
     except (ValueError, OSError, yaml.YAMLError) as exc:
         db.error(str(global_path), str(exc))
 
+    # Inventorier aussi les dashboards déclarés dont le contenu est indisponible.
+    # Ne pas déclarer une entité utilisée sur la seule base de métadonnées.
     count = 0
+    for slug, info in metadata.items():
+        if slug not in configs:
+            db.add({"object_id": f"dashboard.{slug}", "domain": "dashboard",
+                    "object_type": "dashboard", "source_type": "json",
+                    "source_file": "lovelace_dashboards",
+                    "name": info.get("title") or slug,
+                    "attributes": {"url_path": slug, "mode": info.get("mode"),
+                                   "scan_status": "configuration_not_available"}})
     for slug, (config, filename, mode) in configs.items():
         details = metadata.get(slug, {})
         source = f"dashboard.{slug}"
