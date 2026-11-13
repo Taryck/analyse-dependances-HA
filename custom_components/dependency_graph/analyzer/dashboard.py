@@ -134,12 +134,20 @@ def scan_dashboards(root, db, global_path):
             db.error(str(metadata_path), str(exc))
 
     configs = {}
+    # La clé de stockage est l'ID interne (ex. dashboard_ballons),
+    # tandis que l'URL est souvent dashboard-ballons.
+    storage_ids = {
+        str(info["id"]): slug
+        for slug, info in metadata.items()
+        if isinstance(info, dict) and info.get("id")
+    }
     for path in sorted(storage.glob("lovelace*")):
         if not path.is_file() or path.name in {"lovelace_dashboards", "lovelace_resources"}:
             continue
         if path.name != "lovelace" and not path.name.startswith(STORAGE_PREFIX):
             continue
-        slug = path.name[len(STORAGE_PREFIX):] if path.name.startswith(STORAGE_PREFIX) else "lovelace"
+        storage_key = path.name[len(STORAGE_PREFIX):] if path.name.startswith(STORAGE_PREFIX) else "lovelace"
+        slug = storage_ids.get(storage_key, storage_key)
         try:
             data = _read_json(path)
             config = data.get("config")
