@@ -46,5 +46,6 @@
   "Configuration source": "Source configuration",
   "Introuvable": "Not found",
   "Dernière analyse : inconnue": "Last analysis: unknown",
-  "Mots-clés (ex. chauffage temps)": "Keywords (e.g. heating time)"
+  "Mots-clés (ex. chauffage temps)": "Keywords (e.g. heating time)",
+  "Objet inutile": "Unused object"
 }
