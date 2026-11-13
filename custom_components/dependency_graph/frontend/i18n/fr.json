@@ -47,5 +47,17 @@
   "Introuvable": "Introuvable",
   "Dernière analyse : inconnue": "Dernière analyse : inconnue",
   "Mots-clés (ex. chauffage temps)": "Mots-clés (ex. chauffage temps)",
-  "Objet inutile": "Objet inutile"
+  "Objet inutile": "Objet inutile",
+  "Analyse disponible": "Analyse disponible",
+  "Cliquez sur Analyser pour créer l’inventaire.": "Cliquez sur Analyser pour créer l’inventaire.",
+  "Dernière analyse : ": "Dernière analyse : ",
+  "Dernière analyse : jamais": "Dernière analyse : jamais",
+  "Erreur de liste : ": "Erreur de liste : ",
+  "Erreur de fiche : ": "Erreur de fiche : ",
+  "Analyse en cours…": "Analyse en cours…",
+  "Analyse terminée : ": "Analyse terminée : ",
+  "objets, ": "objets, ",
+  "références, ": "références, ",
+  "erreurs": "erreurs",
+  "Échec : ": "Échec : "
 }
