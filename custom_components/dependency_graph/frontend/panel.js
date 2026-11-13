@@ -31,7 +31,7 @@
  * Le nom de la pièce n'est pas utilisé pour deviner son étage.
  * Une pièce devenue incompatible est automatiquement désélectionnée.
  * Le filtre de dépendance manquante examine les cibles introuvables.
- * Le filtre sans dépendance ne compte que les liens fonctionnels.
+ * Le filtre objet inutile exige zéro lien dans chaque sens, y compris organisationnel.
  * Les rattachements organisationnels restent visibles dans les détails.
  * Un rattachement ne contribue pas à la colonne Dépend de.
  * Les objets d'organisation comptent leurs membres dans Utilisé par.
@@ -99,6 +99,31 @@
  * Le composant conserve son état (filtres, tri, page) dans ses propriétés.
  */
 class DependencyGraphPanel extends HTMLElement {
+  // Dictionnaire embarqué sous frontend/i18n ; langue utilisateur HA prioritaire.
+  async loadTranslations() {
+    const language = String(this._hass?.locale?.language || this._hass?.language || 'fr').toLowerCase().split('-')[0];
+    const lang = language === 'en' ? 'en' : 'fr';
+    try {
+      const response = await fetch('/dependency_graph_static/i18n/' + lang + '.json', {cache:'no-cache'});
+      if (!response.ok) throw new Error('HTTP '+response.status);
+      this.translations = await response.json();
+      // Conserver les IDs, attributs et gestionnaires déjà en place.
+      // Traduire uniquement le texte des éléments statiques.
+      const walker = document.createTreeWalker(this.shadowRoot, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        const key = node.textContent.trim();
+        if (this.translations[key]) node.textContent = node.textContent.replace(key, this.translations[key]);
+      }
+      for (const element of this.shadowRoot.querySelectorAll('[placeholder]')) {
+        const value = element.getAttribute('placeholder');
+        if (this.translations[value]) element.setAttribute('placeholder', this.translations[value]);
+      }
+    } catch (error) {
+      console.warn('Dependency Graph: translations unavailable', error);
+    }
+  }
+  t(value) { return (this.translations && this.translations[value]) || value; }
   // Home Assistant fournit automatiquement sa connexion WebSocket au panneau.
   set hass(v){this._hass=v;if(this.isConnected&&!this._started)this.start()}
   // Construit l’interface une seule fois lors de son insertion dans la page.
@@ -174,7 +199,7 @@ class DependencyGraphPanel extends HTMLElement {
         <div class="field"><label for="unit">Unité (kWh, A, V, W…)</label><select id="unit" multiple size="4" title="Sélection multiple avec Ctrl/Cmd ou Maj"><option value="">Toutes les unités</option></select></div>
       </div></fieldset>
     </div>
-    <div class="checkboxes"><label><input type="checkbox" id="missing-only"> Dépendance manquante</label><label><input type="checkbox" id="no-dependencies"> Objets sans dépendance</label></div>
+    <div class="checkboxes"><label><input type="checkbox" id="missing-only"> Dépendance manquante</label><label><input type="checkbox" id="no-dependencies"> Objet inutile</label></div>
     <p id="status" class="muted" role="status"></p>
     <div class="layout"><section class="panel"><h2>Objets <span id="total"></span></h2><div class="table-scroll"><table><thead><tr>
       <th class="sort" data-sort="object_id">Objet</th><th class="sort" data-sort="name">Nom</th><th class="sort" data-sort="floor_name">Étage</th><th class="sort" data-sort="area_name">Pièce</th>
@@ -282,7 +307,7 @@ class DependencyGraphPanel extends HTMLElement {
     const label=this.$('analyzed-at');
     const date=iso?new Date(iso):null;
     const valid=date&&!Number.isNaN(date.getTime());
-    label.textContent=valid?'Dernière analyse : '+date.toLocaleString('fr-FR'):'Dernière analyse : jamais';
+    label.textContent=valid?'Dernière analyse : '+date.toLocaleString(this._hass?.locale?.language || 'fr-FR'):'Dernière analyse : jamais';
     button.classList.toggle('stale',!valid||(Date.now()-date.getTime()>24*60*60*1000));
   }
 
@@ -441,10 +466,10 @@ class DependencyGraphPanel extends HTMLElement {
 
       // Les quatre groupes restent séparés : fonctionnel != organisation.
       for (const [key,label] of [
-        ['depend_on','Dépend de (fonctionnel)'],
-        ['required_by','Utilisé par (fonctionnel)'],
-        ['organisation_depend_on','Rattaché à (organisation)'],
-        ['organisation_required_by','Contient / classe (organisation)']
+        ['depend_on',this.t('Dépend de (fonctionnel)')],
+        ['required_by',this.t('Utilisé par (fonctionnel)')],
+        ['organisation_depend_on',this.t('Rattaché à (organisation)')],
+        ['organisation_required_by',this.t('Contient / classe (organisation)')]
       ]) {
         const section = this.section(box, label, (data[key] || []).length);
         for (const item of data[key] || []) {
@@ -454,7 +479,7 @@ class DependencyGraphPanel extends HTMLElement {
           if (item.missing) {
             const warning = document.createElement('strong');
             warning.className = 'missing';
-            warning.textContent = ' ⚠ Introuvable';
+            warning.textContent = ' ⚠ '+this.t('Introuvable');
             line.append(warning);
           }
           const file = document.createElement('div');
@@ -472,9 +497,9 @@ class DependencyGraphPanel extends HTMLElement {
       }
       // Le serveur fournit déjà le format YAML pour les automatismes.
       // On ne convertit pas ici un objet YAML en JSON, sinon le style d'origine se perd.
-      const props = this.section(box, 'Propriétés');
+      const props = this.section(box, this.t('Propriétés'));
       this.sourceBlock(props, JSON.stringify(data.object, null, 2), data);
-      const source = this.section(box, 'Configuration source');
+      const source = this.section(box, this.t('Configuration source'));
       if (data.configuration_yaml) {
         this.sourceBlock(source, data.configuration_yaml, data);
       } else {
