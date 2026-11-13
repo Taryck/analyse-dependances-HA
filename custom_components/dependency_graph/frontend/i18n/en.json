@@ -47,5 +47,17 @@
   "Introuvable": "Not found",
   "Dernière analyse : inconnue": "Last analysis: unknown",
   "Mots-clés (ex. chauffage temps)": "Keywords (e.g. heating time)",
-  "Objet inutile": "Unused object"
+  "Objet inutile": "Unused object",
+  "Analyse disponible": "Analysis available",
+  "Cliquez sur Analyser pour créer l’inventaire.": "Click Analyze to create the inventory.",
+  "Dernière analyse : ": "Last analysis: ",
+  "Dernière analyse : jamais": "Last analysis: never",
+  "Erreur de liste : ": "List error: ",
+  "Erreur de fiche : ": "Detail error: ",
+  "Analyse en cours…": "Analyzing…",
+  "Analyse terminée : ": "Analysis complete: ",
+  "objets, ": "objects, ",
+  "références, ": "references, ",
+  "erreurs": "errors",
+  "Échec : ": "Failed: "
 }
