@@ -66,6 +66,49 @@ class InterfaceFiltersTests(unittest.TestCase):
             self.assertEqual(service.list_objects(no_dependencies=True)['total'],3)
             self.assertEqual(service.list_objects(missing_only=True)['total'],0)
 
+    def test_reconcile_config_objects_and_unused_filter(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            service = GraphService(tmp)
+            service.storage.mkdir(parents=True, exist_ok=True)
+            db = Database(service.db_path)
+            db.add({'object_id':'input_datetime.heure_fin_hc','domain':'input_datetime',
+                    'object_type':'entity','entity_id':'input_datetime.heure_fin_hc',
+                    'source_file':'core.entity_registry','attributes':{}})
+            db.add({'object_id':'input_datetime_config.heure_fin_hc','domain':'input_datetime',
+                    'object_type':'helper','source_file':'input_datetime',
+                    'config_id':'heure_fin_hc','attributes':{'name':'Heure fin HC'}})
+            db.add({'object_id':'sensor.existant','domain':'sensor','object_type':'entity',
+                    'entity_id':'sensor.existant','source_file':'core.entity_registry',
+                    'attributes':{'config_entry_id':'entry-1'}})
+            db.add({'object_id':'config_entry.entry-1','domain':'filter','object_type':'config_entry',
+                    'config_id':'entry-1','source_file':'core.config_entries',
+                    'attributes':{'entry_id':'entry-1','domain':'filter',
+                                  'options':{'entity_id':'sensor.source'}}})
+            db.add({'object_id':'sensor.source','domain':'sensor','object_type':'entity',
+                    'entity_id':'sensor.source','source_file':'core.entity_registry','attributes':{}})
+            db.add({'object_id':'sensor.inutile','domain':'sensor','object_type':'entity',
+                    'entity_id':'sensor.inutile','source_file':'core.entity_registry','attributes':{}})
+            db.db.execute("INSERT INTO dependencies (source_id,target_id,source_file,yaml_path,reference_type) VALUES (?,?,?,?,?)",
+                          ('sensor.existant','sensor.source','core.config_entries','options.entity_id','direct'))
+            db.reconcile_config_objects()
+            db.commit()
+            self.assertIsNone(db.db.execute(
+                "SELECT 1 FROM objects WHERE object_id='config_entry.entry-1'").fetchone())
+            self.assertIsNone(db.db.execute(
+                "SELECT 1 FROM objects WHERE object_id='input_datetime_config.heure_fin_hc'").fetchone())
+            db.close()
+            data = service.list_objects()
+            self.assertEqual(data['total'], 4)
+            unused = {row['object_id'] for row in service.list_objects(no_dependencies=True)['items']}
+            self.assertIn('sensor.inutile', unused)
+            self.assertIn('input_datetime.heure_fin_hc', unused)
+            self.assertNotIn('sensor.existant', unused)
+            self.assertNotIn('sensor.source', unused)
+            self.assertEqual(service.detail('sensor.existant')['configuration']['source'],
+                             'core.config_entries')
+            self.assertEqual(service.detail('input_datetime.heure_fin_hc')['configuration']['data']['name'],
+                             'Heure fin HC')
+
     def test_floor_filters_areas(self):
         """La liste des pièces doit provenir du registre, avec l'étage réel."""
         with tempfile.TemporaryDirectory() as tmp:

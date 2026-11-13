@@ -45,6 +45,7 @@ class GraphService:
         try:
             refs = scan_all(self.root, db, self.global_path)
             refs += scan_dashboards(self.root, db, self.global_path)
+            db.reconcile_config_objects()
             objects = db.db.execute('SELECT count(*) FROM objects').fetchone()[0]
             errors = db.db.execute('SELECT count(*) FROM errors').fetchone()[0]
             # La date est écrite seulement après la reconstruction complète.
@@ -179,7 +180,7 @@ class GraphService:
                   functional_in+CASE WHEN domain IN ('area','floor','category','label') THEN org_in ELSE 0 END AS required_by_count
               FROM counted
               WHERE (NOT ? OR missing_count > 0)
-                AND (NOT ? OR functional_out = 0)
+                AND (NOT ? OR (functional_out = 0 AND functional_in = 0 AND org_in = 0 AND org_out = 0))
               ORDER BY {order} {direction},object_id ASC LIMIT ? OFFSET ?"""
             # Pour conserver une pagination correcte, le total doit respecter
             # exactement les mêmes filtres calculés que la requête de lignes.
@@ -263,7 +264,20 @@ class GraphService:
                 'SELECT attributes FROM objects WHERE object_id=?', (oid,)
             ).fetchone()[0] or '{}')
             entry_id = attrs.get('config_entry_id')
-            if entry_id and domain not in ('automation', 'script', 'scene'):
+            if attrs.get('config_entry_configuration'):
+                settings = attrs['config_entry_configuration']
+                data['configuration'] = {
+                    'source': 'core.config_entries',
+                    'domain': settings.get('domain'),
+                    'options': settings.get('options') or {},
+                    'data': settings.get('data') or {},
+                }
+            elif attrs.get('helper_configuration'):
+                data['configuration'] = {
+                    'source': attrs.get('helper_source_file'),
+                    'data': attrs['helper_configuration'],
+                }
+            if entry_id and domain not in ('automation', 'script', 'scene') and not attrs.get('config_entry_configuration'):
                 # Chercher par config_id, pas par nom ou domaine : cela couvre
                 # filter, template et toutes les intégrations qui exposent une
                 # entrée associée à l'entité dans le registre.
