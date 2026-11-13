@@ -78,6 +78,76 @@ class Database:
                             (json.dumps(attrs,ensure_ascii=False),config['config_id'],entity['object_id']))
             self.db.execute('DELETE FROM objects WHERE object_id=?', (config['object_id'],))
 
+    def reconcile_config_objects(self):
+        """Fusionne les objets de configuration associés à des entités.
+
+        Cette opération s'exécute après l'extraction de toutes les dépendances :
+        les références venant des entrées de configuration sont déjà reliées
+        directement aux entités. Ne conserve que les objets sans correspondance.
+        """
+        rows = list(self.db.execute(
+            "SELECT * FROM objects WHERE object_type IN ('helper', 'config_entry') "
+            "OR object_id LIKE 'input\\_%\\_config.%' ESCAPE '\\'"
+        ))
+        for row in rows:
+            oid = row['object_id']
+            attrs = json.loads(row['attributes'] or '{}')
+            if row['object_type'] == 'config_entry':
+                entry_id = row['config_id'] or attrs.get('entry_id')
+                if not entry_id:
+                    continue
+                entities = list(self.db.execute(
+                    "SELECT * FROM objects WHERE entity_id IS NOT NULL "
+                    "AND json_extract(attributes, '$.config_entry_id')=?", (entry_id,)
+                ))
+            else:
+                # input_datetime_config.heure_fin_hc -> input_datetime.heure_fin_hc.
+                # Les anciennes entrées possèdent parfois un unique_id plutôt
+                # qu'un entity_id. Ne jamais apparier par le seul nom affiché.
+                domain = row['domain']
+                key = oid.split('.', 1)[1] if '.' in oid else ''
+                if domain.endswith('_config'):
+                    domain = domain[:-7]
+                if not key or not domain.startswith('input_'):
+                    continue
+                entity_id = f'{domain}.{key}'
+                entities = list(self.db.execute(
+                    "SELECT * FROM objects WHERE entity_id=? OR object_id=?", (entity_id, entity_id)
+                ))
+                if not entities and row['unique_id']:
+                    entities = list(self.db.execute(
+                        "SELECT * FROM objects WHERE domain=? AND unique_id=? "
+                        "AND entity_id IS NOT NULL", (domain, row['unique_id'])
+                    ))
+                if len(entities) != 1:
+                    continue
+
+            if not entities:
+                continue
+            for entity in entities:
+                if entity['object_id'] == oid:
+                    continue
+                item_attrs = json.loads(entity['attributes'] or '{}')
+                if row['object_type'] == 'config_entry':
+                    item_attrs['config_entry_configuration'] = attrs
+                else:
+                    item_attrs['helper_configuration'] = attrs
+                    item_attrs['helper_source_file'] = row['source_file']
+                self.db.execute(
+                    'UPDATE objects SET attributes=? WHERE object_id=?',
+                    (json.dumps(item_attrs, ensure_ascii=False), entity['object_id'])
+                )
+                # Une dépendance dont la source est la configuration doit
+                # désormais appartenir à l'entité. L'unicité est préservée.
+                self.db.execute(
+                    "INSERT OR IGNORE INTO dependencies "
+                    "(source_id,target_id,source_file,yaml_path,reference_type) "
+                    "SELECT ?,target_id,source_file,yaml_path,reference_type "
+                    "FROM dependencies WHERE source_id=?", (entity['object_id'], oid)
+                )
+            self.db.execute('DELETE FROM dependencies WHERE source_id=?', (oid,))
+            self.db.execute('DELETE FROM objects WHERE object_id=?', (oid,))
+
     def enrich_objects(self):
         """Associe pièces, étages, catégories et étiquettes sans modifier l'identité."""
         rows = list(self.db.execute('SELECT object_id,domain,object_type,attributes FROM objects'))
