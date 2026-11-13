@@ -77,3 +77,21 @@ Les références des champs `entity`, `entity_id`, `entities` et certains templa
 sont recherchées ; les templates dynamiques ou les stratégies générées ne sont pas
 résolus exhaustivement. Le statut `configuration_not_available` signale un tableau
 de bord déclaré dont la configuration n'a pas été trouvée. Les fichiers restent en lecture seule.
+
+## Dédoublonnage et interface bilingue
+
+Le scan associe les dashboards stockés sous leur identifiant interne aux
+métadonnées correspondantes par `id` / `url_path` (sans déduire de relation
+sur la simple ressemblance des noms). Les entrées techniques de helpers et
+`core.config_entries` reliées à une entité sont fusionnées avec la fiche
+de cette entité après extraction des références. Une entrée sans
+correspondance reste consultable.
+
+Le filtre **Objet inutile** (**Unused object**) sélectionne uniquement les
+objets dont **Dépend de** et **Utilisé par** valent zéro ; les liens
+d'organisation sont aussi pris en compte. L'absence de référence détectée
+ne prouve pas qu'une entité peut être supprimée sans risque.
+
+Les traductions du panneau sont dans `frontend/i18n/fr.json` et
+`frontend/i18n/en.json`. La langue suit la préférence utilisateur
+Home Assistant ; les fichiers de configuration source ne sont jamais modifiés.
