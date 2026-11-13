@@ -307,7 +307,7 @@ class DependencyGraphPanel extends HTMLElement {
     const label=this.$('analyzed-at');
     const date=iso?new Date(iso):null;
     const valid=date&&!Number.isNaN(date.getTime());
-    label.textContent=valid?'Dernière analyse : '+date.toLocaleString(this._hass?.locale?.language || 'fr-FR'):'Dernière analyse : jamais';
+    label.textContent=valid?this.t('Dernière analyse : ')+date.toLocaleString(this._hass?.locale?.language || 'fr-FR'):this.t('Dernière analyse : jamais');
     button.classList.toggle('stale',!valid||(Date.now()-date.getTime()>24*60*60*1000));
   }
 
@@ -422,11 +422,11 @@ class DependencyGraphPanel extends HTMLElement {
       // 8. Confirmer la lecture de l'inventaire.
       // La présence de la base n'entraîne pas une nouvelle analyse automatique.
       this.status(result.analyzed
-        ? 'Analyse disponible'
-        : 'Cliquez sur Analyser pour créer l’inventaire.');
+        ? this.t('Analyse disponible')
+        : this.t('Cliquez sur Analyser pour créer l’inventaire.'));
     } catch (error) {
       // Une erreur WebSocket reste visible plutôt que de vider silencieusement l'écran.
-      this.status('Erreur de liste : ' + error.message);
+      this.status(this.t('Erreur de liste : ') + error.message);
     }
   }
   // Tous les identifiants sont cliquables et ouvrent leur fiche.
@@ -506,7 +506,7 @@ class DependencyGraphPanel extends HTMLElement {
         this.sourceBlock(source, JSON.stringify(data.configuration, null, 2), data);
       }
     } catch (error) {
-      this.status('Erreur de fiche : ' + error.message);
+      this.status(this.t('Erreur de fiche : ') + error.message);
     }
   }
 
@@ -566,6 +566,6 @@ class DependencyGraphPanel extends HTMLElement {
    * Les étapes sont volontairement séparées de la présentation pour faciliter
    * la maintenance et le diagnostic depuis la console du navigateur.
    */
-  async analyze(){const b=this.$('analyze');b.disabled=true;this.status('Analyse en cours…');try{const result=await this.api('analyze');this.values=await this.api('values');this.domains();this.categories();this.fill('floor',this.values.floor_name||[]);this.areas();this.measurementUnits();this.offset=0;await this.list();this.status(`Analyse terminée : ${result.objects} objets, ${result.dependencies} références, ${result.errors} erreurs`)}catch(e){this.status('Échec : '+e.message)}finally{b.disabled=false}}
+  async analyze(){const b=this.$('analyze');b.disabled=true;this.status(this.t('Analyse en cours…'));try{const result=await this.api('analyze');this.values=await this.api('values');this.domains();this.categories();this.fill('floor',this.values.floor_name||[]);this.areas();this.measurementUnits();this.offset=0;await this.list();this.status(`${this.t('Analyse terminée : ')}${result.objects} ${this.t('objets, ')}${result.dependencies} ${this.t('références, ')}${result.errors} ${this.t('erreurs')}`)}catch(e){this.status(this.t('Échec : ')+e.message)}finally{b.disabled=false}}
 }
 customElements.define('dependency-graph-panel',DependencyGraphPanel);
