@@ -89,7 +89,12 @@ def _extract(value, key):
             token = match.group(1)
             if ENTITY.fullmatch(token):
                 refs.append((token, "dashboard_template"))
-    return list(dict.fromkeys(refs))
+    # Une même déclaration entity: ne doit pas compter deux fois parce
+    # qu'elle est reconnue par le lecteur générique ET par Lovelace.
+    by_target = {}
+    for target, kind in refs:
+        by_target.setdefault(target, kind)
+    return list(by_target.items())
 
 
 def _links(db, source, filename, config):
