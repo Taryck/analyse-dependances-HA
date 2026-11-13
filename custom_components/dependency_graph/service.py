@@ -28,6 +28,7 @@ from .analyzer.database import Database
 from .analyzer.inventory.object_inventory import scan
 from .analyzer.dependencies.all_objects import scan_all
 from .analyzer.detail import build_detail
+from .analyzer.dashboard import scan_dashboards
 
 class GraphService:
     """Encapsule l'analyse CLI pour la réutiliser dans Home Assistant."""
@@ -43,6 +44,7 @@ class GraphService:
         db = Database(self.db_path)
         try:
             refs = scan_all(self.root, db, self.global_path)
+            refs += scan_dashboards(self.root, db, self.global_path)
             objects = db.db.execute('SELECT count(*) FROM objects').fetchone()[0]
             errors = db.db.execute('SELECT count(*) FROM errors').fetchone()[0]
             # La date est écrite seulement après la reconstruction complète.
@@ -128,8 +130,8 @@ class GraphService:
                 autom = "o.domain IN ('automation','script','scene')"
                 mapping = {
                     'organisation': org, 'assistants': helpers,
-                    'automatisations': autom,
-                    'entites': f"NOT ({org} OR {helpers} OR {autom})",
+                    'automatisations': autom, 'dashboards': "o.domain = 'dashboard'",
+                    'entites': f"NOT ({org} OR {helpers} OR {autom} OR o.domain = 'dashboard')",
                 }
                 chosen = [mapping[f] for f in families if f in mapping]
                 if chosen:

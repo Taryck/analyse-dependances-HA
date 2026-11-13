@@ -40,6 +40,12 @@ def location_label(db, dependency, object_row):
     if not path:
         return '(racine)'
     attrs = json.loads(object_row['attributes'] or '{}') if object_row else {}
+    if object_row and object_row['domain'] == 'dashboard':
+        def view_name(match):
+            index = match.group(1)
+            title = (attrs.get('view_titles') or {}).get(index)
+            return f'Vue « {title} »' if title else f'Vue {int(index) + 1}'
+        return re.sub(r'^views\\[(\\d+)\\]', view_name, path).replace('.cards[', ' → Carte [').replace('.badges[', ' → Badge [').replace('.sections[', ' → Section [')
     config = attrs.get('yaml_configuration') or attrs
     # Remplace seulement les index d'étapes ayant un alias explicite.
     tokens = re.findall(r'([^\[.]+)|\[(\d+)\]', path)
