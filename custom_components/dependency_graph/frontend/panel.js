@@ -158,7 +158,7 @@ class DependencyGraphPanel extends HTMLElement {
     <!-- Trois groupes distincts : chaque groupe garde ses deux filtres côte à côte. -->
     <div class="filter-groups">
       <fieldset class="filter-group"><legend>Objets</legend><div class="filter-pair">
-        <div class="field"><label for="family">Famille</label><select id="family" multiple size="4" title="Ctrl/Cmd ou Maj pour sélectionner plusieurs valeurs"><option value="">Toutes les familles</option><option value="entites">Entités</option><option value="assistants">Assistants</option><option value="automatisations">Automatisations et scripts</option><option value="organisation">Organisation HA</option></select></div>
+        <div class="field"><label for="family">Famille</label><select id="family" multiple size="4" title="Ctrl/Cmd ou Maj pour sélectionner plusieurs valeurs"><option value="">Toutes les familles</option><option value="entites">Entités</option><option value="assistants">Assistants</option><option value="automatisations">Automatisations et scripts</option><option value="dashboards">Dashboards</option><option value="organisation">Organisation HA</option></select></div>
         <div class="field"><label for="domain">Domaine</label><select id="domain" multiple size="4" title="Ctrl/Cmd ou Maj pour sélectionner plusieurs valeurs"><option value="">Tous les domaines</option></select></div>
       </div></fieldset>
       <fieldset class="filter-group"><legend>Catégorie</legend><div class="filter-pair">
@@ -228,7 +228,7 @@ class DependencyGraphPanel extends HTMLElement {
    * Les étapes sont volontairement séparées de la présentation pour faciliter
    * la maintenance et le diagnostic depuis la console du navigateur.
    */
-  domains(){const families=this.selected('family'),all=this.values.domain||[];const org=['area','floor','category','label'];const helpers=['input_boolean','input_datetime','input_number','input_select','input_text','input_button','counter','timer','schedule'];const autom=['automation','script','scene'];const allowed=d=>!families.length||families.some(f=>f==='organisation'?org.includes(d):f==='assistants'?helpers.includes(d):f==='automatisations'?autom.includes(d):!org.includes(d)&&!helpers.includes(d)&&!autom.includes(d));this.fill('domain',all.filter(allowed))}
+  domains(){const families=this.selected('family'),all=this.values.domain||[];const org=['area','floor','category','label'];const helpers=['input_boolean','input_datetime','input_number','input_select','input_text','input_button','counter','timer','schedule'];const autom=['automation','script','scene'];const dashboards=['dashboard'];const allowed=d=>!families.length||families.some(f=>f==='organisation'?org.includes(d):f==='assistants'?helpers.includes(d):f==='automatisations'?autom.includes(d):f==='dashboards'?dashboards.includes(d):!org.includes(d)&&!helpers.includes(d)&&!autom.includes(d)&&!dashboards.includes(d));this.fill('domain',all.filter(allowed))}
   // Deux listes HA distinctes : catégories d’assistants et d’automatisations.
   /**
    * categories : Les catégories HA ont deux portées indépendantes. La liste de noms dépend du type choisi et élimine les doublons.
