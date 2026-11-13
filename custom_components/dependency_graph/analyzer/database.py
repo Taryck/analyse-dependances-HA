@@ -91,6 +91,9 @@ class Database:
         ))
         for row in rows:
             oid = row['object_id']
+            # Un helper déjà inventorié sous son entity_id n'est PAS un doublon.
+            if row['object_type'] == 'helper' and row['entity_id'] == oid:
+                continue
             attrs = json.loads(row['attributes'] or '{}')
             if row['object_type'] == 'config_entry':
                 entry_id = row['config_id'] or attrs.get('entry_id')
