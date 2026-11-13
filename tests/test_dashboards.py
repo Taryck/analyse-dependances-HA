@@ -53,7 +53,7 @@ class DashboardTests(unittest.TestCase):
                         "source_file": "test", "attributes": {}})
                 count = scan_dashboards(root, db, global_file)
                 db.commit()
-                self.assertEqual(count, 4)
+                self.assertEqual(count, 5)
                 details = build_detail(db, "sensor.temperature_salon")
                 self.assertEqual(details["required_by"][0]["id"], "dashboard.maison")
                 dashboard = build_detail(db, "dashboard.maison")
