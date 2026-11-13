@@ -61,3 +61,19 @@ Le détail affiche les automatismes au format YAML reconstruit depuis les
 données analysées (pas les commentaires ni la mise en page originale).
 Les entités Template liées à une entrée `core.config_entries` affichent les
 options de cette seule entrée, sans recopier toutes les entrées du registre.
+
+## Dépendances Lovelace (branche feature/lovelace-dependencies)
+
+L'analyse manuelle lit également les configurations des tableaux de bord :
+- `.storage/lovelace` et `.storage/lovelace.*` (mode stockage) ;
+- `.storage/lovelace_dashboards` (titres et déclarations) ;
+- `lovelace.dashboards` de `configuration.yaml` et les fichiers YAML associés ;
+- `ui-lovelace.yaml` si le tableau de bord principal est configuré en mode YAML.
+
+Les tableaux de bord apparaissent dans la famille **Dashboards**. Leurs liens vers des
+entités sont comptés comme dépendances fonctionnelles. Dans une fiche d'entité,
+**Utilisé par** indique le tableau de bord, la vue et le chemin de carte ou badge.
+Les références des champs `entity`, `entity_id`, `entities` et certains templates
+sont recherchées ; les templates dynamiques ou les stratégies générées ne sont pas
+résolus exhaustivement. Le statut `configuration_not_available` signale un tableau
+de bord déclaré dont la configuration n'a pas été trouvée. Les fichiers restent en lecture seule.
