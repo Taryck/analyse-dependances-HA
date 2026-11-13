@@ -27,9 +27,9 @@ class DashboardTests(unittest.TestCase):
             storage = root / ".storage"
             storage.mkdir()
             (storage / "lovelace_dashboards").write_text(json.dumps({
-                "data": {"items": [{"url_path": "maison", "title": "Maison"}]}
+                "data": {"items": [{"id": "dashboard_maison", "url_path": "maison", "title": "Maison"}]}
             }))
-            (storage / "lovelace.maison").write_text(json.dumps({
+            (storage / "lovelace.dashboard_maison").write_text(json.dumps({
                 "data": {"config": {"views": [{
                     "title": "Salon", "cards": [
                         {"type": "entities", "entities": [
@@ -54,6 +54,7 @@ class DashboardTests(unittest.TestCase):
                 count = scan_dashboards(root, db, global_file)
                 db.commit()
                 self.assertEqual(count, 5)
+                self.assertEqual(db.db.execute("SELECT COUNT(*) FROM objects WHERE domain='dashboard'").fetchone()[0], 1)
                 details = build_detail(db, "sensor.temperature_salon")
                 self.assertEqual(details["required_by"][0]["id"], "dashboard.maison")
                 dashboard = build_detail(db, "dashboard.maison")
